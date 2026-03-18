@@ -1,0 +1,2742 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Throw the Stone</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+
+  /* ── THEME ── */
+  :root {
+    --bg:#ffffff; --bg2:#f0f0f0; --fg:#111111; --fg2:#555555; --fg3:#888888;
+    --border:#cccccc; --btn-bg:rgba(0,0,0,.07); --overlay-bg:rgba(255,255,255,.45);
+  }
+  body.dark {
+    --bg:#181818; --bg2:#252525; --fg:#eeeeee; --fg2:#aaaaaa; --fg3:#777777;
+    --border:#444444; --btn-bg:rgba(255,255,255,.10); --overlay-bg:rgba(20,20,20,.75);
+  }
+  body { width:100vw; height:100vh; overflow:hidden; background:var(--bg); font-family:sans-serif; user-select:none; cursor:default; transition:background .25s,color .25s; }
+
+  /* ── HOME ── */
+  #homescreen { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; background:var(--bg); z-index:100; transition:background .25s; }
+  .home-title { font-size:clamp(3rem,9vw,7.5rem); font-weight:900; color:var(--fg); text-align:center; line-height:1.05; margin-bottom:2rem; }
+  .start-btn { padding:.95rem 3.2rem; font-family:sans-serif; font-size:1.1rem; font-weight:700; letter-spacing:.08em; color:var(--bg); background:var(--fg); border:none; border-radius:4px; cursor:pointer; box-shadow:0 4px 18px rgba(0,0,0,.18); transition:transform .1s,background .15s,color .15s; }
+  .start-btn:hover { opacity:.85; transform:translateY(-2px); }
+  .start-btn:active { transform:translateY(1px); }
+
+  /* ── GAME ── */
+  #gamescreen { position:absolute; inset:0; display:none; }
+  #gameCanvas { width:100%; height:100%; display:block; }
+  #score-display { position:absolute; top:18px; right:22px; font-family:sans-serif; color:var(--fg); font-size:1.2rem; font-weight:700; pointer-events:none; }
+
+  /* ── PAUSE BUTTON ── */
+  #home-highscore { font-family:sans-serif; font-size:.95rem; color:var(--fg3); margin-top:1rem; }
+
+  /* ── NEW HIGH SCORE BANNER ── */
+  #new-highscore-banner {
+    display:none;
+    position:absolute; top:18px; left:50%; transform:translateX(-50%);
+    font-family:sans-serif; font-size:1.1rem; font-weight:800;
+    color:#d4900a; background:rgba(255,248,220,.95);
+    border:1.5px solid #e8c84a; border-radius:6px;
+    padding:.45rem 1.2rem; pointer-events:none;
+    white-space:nowrap;
+    box-shadow:0 2px 12px rgba(200,150,0,.2);
+    z-index:50;
+  }
+  #new-highscore-banner.visible { display:block; }
+
+  /* ── PAUSE BUTTON ── */
+  #pause-btn {
+    position:absolute; top:14px; left:16px;
+    font-family:sans-serif; font-size:.9rem; font-weight:600;
+    color:var(--fg); background:var(--btn-bg); border:1.5px solid var(--border);
+    border-radius:5px; padding:.38rem .85rem; cursor:pointer;
+    transition:background .12s;
+  }
+  #pause-btn:hover { background:var(--bg2); }
+
+  /* ── PAUSE OVERLAY ── */
+  #pause-overlay {
+    display:none;
+    position:absolute; inset:0; z-index:200;
+    background:var(--overlay-bg);
+    backdrop-filter:blur(6px);
+    -webkit-backdrop-filter:blur(6px);
+    align-items:center; justify-content:center; flex-direction:column;
+  }
+  #pause-overlay.visible { display:flex; }
+  #pause-box {
+    background:var(--bg); border-radius:10px;
+    box-shadow:0 8px 40px rgba(0,0,0,.28);
+    padding:2.4rem 3rem; text-align:center; min-width:260px;
+  }
+  #pause-box h2 { font-family:sans-serif; font-size:2rem; font-weight:800; color:var(--fg); margin-bottom:.5rem; }
+  #pause-score { font-family:sans-serif; font-size:1.15rem; color:var(--fg2); margin-bottom:1.8rem; }
+  .pause-btns { display:flex; gap:1rem; justify-content:center; }
+  .pause-btns button {
+    padding:.7rem 1.6rem; font-family:sans-serif; font-size:1rem; font-weight:700;
+    border:none; border-radius:5px; cursor:pointer; transition:background .12s, transform .1s;
+  }
+  #btn-home     { background:var(--bg2); color:var(--fg); }
+  #btn-home:hover { opacity:.8; }
+  #btn-restart  { background:var(--bg2); color:var(--fg); display:none; }
+  #btn-restart:hover { opacity:.8; }
+  #btn-continue { background:var(--fg); color:var(--bg); }
+  #btn-continue:hover { opacity:.85; }
+  #stone-counter {
+    position:absolute; bottom:14px; left:18px;
+    display:flex; align-items:center; gap:6px;
+    font-family:sans-serif; font-size:1.1rem; font-weight:700;
+    color:var(--fg); pointer-events:none;
+  }
+  #stone-counter canvas { display:block; }
+
+  /* ── INFORMATION SCREEN ── */
+  #infoscreen {
+    display:none; position:absolute; inset:0; background:var(--bg); z-index:300;
+    flex-direction:column; align-items:center;
+    overflow:hidden; padding:0 1.2rem;
+    box-sizing:border-box; transition:background .25s;
+  }
+  #infoscreen.visible { display:flex; }
+  #info-back {
+    position:absolute; top:12px; left:14px;
+    font-family:sans-serif; font-size:.85rem; font-weight:600;
+    color:var(--fg); background:var(--btn-bg); border:1px solid var(--border);
+    border-radius:5px; padding:.3rem .75rem; cursor:pointer;
+    transition:background .12s;
+  }
+  #info-back:hover { background:var(--bg2); }
+  #info-title { font-size:1.5rem; font-weight:900; color:var(--fg); margin-bottom:.1rem; margin-top:1.1rem; text-align:center; flex-shrink:0; }
+  #info-subtitle { font-size:.88rem; color:var(--fg3); margin-bottom:.6rem; text-align:center; flex-shrink:0; }
+  #info-entries { width:100%; max-width:520px; flex:1; min-height:0; display:flex; flex-direction:column; justify-content:space-evenly; }
+  .info-entry {
+    display:flex; align-items:center; justify-content:space-between; gap:1rem;
+    border-bottom:1px solid var(--border); padding:.5rem 0;
+  }
+  .info-entry:last-child { border-bottom:none; }
+  .info-text { flex:1; min-width:0; }
+  .info-entry-title { font-family:sans-serif; font-size:.95rem; font-weight:800; color:var(--fg); margin-bottom:.2rem; }
+  .info-entry-desc { font-family:sans-serif; font-size:.8rem; color:var(--fg2); line-height:1.45; }
+  .info-canvas-wrap { flex-shrink:0; }
+  #info-version { font-family:sans-serif; font-size:.72rem; color:var(--border); padding:.5rem 0 .6rem; flex-shrink:0; }
+
+  /* Info button on homescreen */
+  .info-btn {
+    margin-top:.7rem; padding:.6rem 2rem;
+    font-family:sans-serif; font-size:.95rem; font-weight:600;
+    color:var(--fg); background:transparent; border:1.5px solid var(--border);
+    border-radius:4px; cursor:pointer; transition:background .12s,color .12s;
+  }
+  .info-btn:hover { background:var(--bg2); }
+
+  /* ── SETTINGS SCREEN ── */
+  #settingsscreen {
+    display:none; position:absolute; inset:0; background:var(--bg); z-index:300;
+    flex-direction:column; align-items:center;
+    padding:0 1.5rem; box-sizing:border-box; transition:background .25s;
+  }
+  #settingsscreen.visible { display:flex; }
+  #settings-back {
+    position:absolute; top:12px; left:14px;
+    font-family:sans-serif; font-size:.85rem; font-weight:600;
+    color:var(--fg); background:var(--btn-bg); border:1px solid var(--border);
+    border-radius:5px; padding:.3rem .75rem; cursor:pointer; transition:background .12s;
+  }
+  #settings-back:hover { background:var(--bg2); }
+  #settings-title { font-size:1.5rem; font-weight:900; color:var(--fg); margin-top:1.1rem; margin-bottom:2rem; text-align:center; }
+  .setting-row {
+    width:100%; max-width:400px; display:flex; align-items:center;
+    justify-content:space-between; gap:1rem; padding:1.1rem 0;
+    border-bottom:1px solid var(--border);
+  }
+  .setting-row:last-child { border-bottom:none; }
+  .setting-label { font-size:1rem; font-weight:700; color:var(--fg); }
+  #vol-slider { flex:1; max-width:180px; height:5px; accent-color:var(--fg); cursor:pointer; }
+  .toggle-wrap { position:relative; width:48px; height:26px; flex-shrink:0; cursor:pointer; }
+  .toggle-wrap input { opacity:0; width:0; height:0; position:absolute; }
+  .toggle-track {
+    position:absolute; inset:0; background:var(--border); border-radius:13px; transition:background .2s;
+  }
+  .toggle-wrap input:checked + .toggle-track { background:var(--fg); }
+  .toggle-track::after {
+    content:''; position:absolute; width:20px; height:20px;
+    background:#fff; border-radius:50%; top:3px; left:3px;
+    transition:transform .2s; box-shadow:0 1px 4px rgba(0,0,0,.25);
+  }
+  .toggle-wrap input:checked + .toggle-track::after { transform:translateX(22px); }
+
+  /* ── DELETE ACCOUNT FLOW ── */
+  #del-confirm-overlay, #del-shoot-overlay, #del-goodbye-overlay {
+    display:none; position:fixed; inset:0; z-index:700;
+    align-items:center; justify-content:center;
+  }
+  #del-confirm-overlay.visible { display:flex; background:rgba(0,0,0,.45); }
+  #del-box {
+    background:var(--bg); border-radius:12px; padding:2rem 2rem 1.6rem;
+    box-shadow:0 8px 40px rgba(0,0,0,.35); width:90%; max-width:340px; text-align:center;
+  }
+  #del-box h2 { font-size:1.05rem; font-weight:800; color:var(--fg); margin-bottom:.4rem; }
+  #del-box p  { font-size:.8rem; color:var(--fg3); margin-bottom:1.4rem; }
+  #del-btns   { display:flex; gap:.8rem; justify-content:center; }
+  #del-btns button { padding:.6rem 1.4rem; font-family:sans-serif; font-size:.95rem; font-weight:700;
+    border:none; border-radius:5px; cursor:pointer; transition:opacity .12s; }
+  #del-confirm-btn { background:#cc2200; color:#fff; opacity:.35; pointer-events:none; }
+  #del-confirm-btn.ready { opacity:1; pointer-events:auto; }
+  #del-cancel-btn  { background:var(--bg2); color:var(--fg); }
+
+  #del-shoot-overlay.visible {
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    background:transparent;
+  }
+  #del-shoot-overlay canvas { position:absolute; inset:0; width:100%; height:100%; display:block; }
+  #del-fade-overlay {
+    position:absolute; inset:0; background:#000; opacity:0; pointer-events:none;
+    transition:opacity 1.2s ease; z-index:2;
+  }
+  #del-fade-overlay.fade-in { opacity:1; }
+  #del-shoot-label {
+    display:none; /* drawn on canvas instead */
+  }
+  #del-timer-bar {
+    display:none; /* timer drawn on canvas */
+  }
+  #del-timer-fill { height:100%; background:#cc2200; border-radius:3px; }
+
+  #del-goodbye-overlay.visible {
+    display:flex; background:#000;
+  }
+  #del-goodbye-text {
+    color:#fff; font-family:sans-serif; font-size:3rem; font-weight:900;
+    opacity:0; transition:opacity 0.6s;
+  }
+  #confirm-overlay {
+    display:none; position:fixed; inset:0; z-index:500;
+    background:rgba(0,0,0,.35); align-items:center; justify-content:center;
+  }
+  #confirm-overlay.visible { display:flex; }
+  #confirm-box {
+    background:var(--bg); border-radius:10px;
+    box-shadow:0 8px 40px rgba(0,0,0,.28);
+    padding:1.8rem 2rem 1.5rem; text-align:center; max-width:320px; width:90%;
+  }
+  #confirm-box p { font-size:.95rem; color:var(--fg); line-height:1.5; margin-bottom:1.4rem; }
+  .confirm-btns { display:flex; gap:.8rem; justify-content:center; }
+  .confirm-btns button {
+    padding:.6rem 1.4rem; font-family:sans-serif; font-size:.95rem; font-weight:700;
+    border:none; border-radius:5px; cursor:pointer; transition:opacity .12s,transform .1s;
+  }
+  .confirm-btns button:active { transform:scale(.97); }
+  #confirm-reset  { background:#cc2200; color:#fff; }
+  #confirm-reset:hover { opacity:.85; }
+  #confirm-cancel { background:var(--bg2); color:var(--fg); }
+  #confirm-cancel:hover { opacity:.8; }
+
+  /* ── NAME MODAL ── */
+  #name-overlay {
+    display:none; position:fixed; inset:0; z-index:600;
+    background:rgba(0,0,0,.45); align-items:center; justify-content:center;
+  }
+  #name-overlay.visible { display:flex; }
+  #name-box {
+    background:var(--bg); border-radius:12px; padding:2rem 2rem 1.6rem;
+    box-shadow:0 8px 40px rgba(0,0,0,.3); width:90%; max-width:340px; text-align:center;
+  }
+  #name-box h2 { font-size:1.1rem; font-weight:800; color:var(--fg); margin-bottom:.4rem; line-height:1.4; }
+  #name-box p  { font-size:.82rem; color:var(--fg3); margin-bottom:1rem; }
+  #name-input {
+    width:100%; padding:.6rem .8rem; font-size:1rem; border-radius:5px;
+    border:1.5px solid var(--border); background:var(--bg2); color:var(--fg);
+    outline:none; box-sizing:border-box; text-align:center;
+  }
+  #name-input:focus { border-color:var(--fg); }
+  #name-error { font-size:.82rem; color:#cc2200; min-height:1.2em; margin-top:.35rem; }
+  #name-ok {
+    padding:.7rem;
+    font-family:sans-serif; font-size:1rem; font-weight:700;
+    background:var(--fg); color:var(--bg); border:none; border-radius:5px;
+    cursor:pointer; opacity:.4; transition:opacity .15s; flex:1;
+  }
+  #name-ok.ready { opacity:1; }
+  #name-cancel {
+    padding:.7rem; flex:1;
+    font-family:sans-serif; font-size:1rem; font-weight:700;
+    background:var(--bg2); color:var(--fg); border:none; border-radius:5px; cursor:pointer;
+  }
+
+  /* ── LEADERBOARD ON HOMESCREEN ── */
+  #lb-home {
+    width:100%; max-width:320px; margin-top:2.8rem;
+    font-family:sans-serif; font-size:.88rem;
+  }
+  #lb-home table { width:100%; border-collapse:collapse; }
+  #lb-home td { padding:.28rem .4rem; color:var(--fg2); }
+  #lb-home td:first-child { font-weight:700; color:var(--fg3); text-align:right; padding-right:.5rem; width:1.4em; }
+  #lb-home td:nth-child(2) { font-weight:600; color:var(--fg); }
+  #lb-home td:last-child  { text-align:right; font-weight:700; color:var(--fg); }
+  #lb-home tr.me td { color:#c68a00 !important; }
+  #lb-expand { background:none; border:none; color:var(--fg3); font-size:.78rem;
+    cursor:pointer; margin-top:.3rem; text-decoration:underline; }
+
+  /* ── LEADERBOARD FULL OVERLAY ── */
+  #lb-overlay {
+    display:none; position:fixed; inset:0; z-index:400;
+    background:var(--overlay-bg); backdrop-filter:blur(6px);
+    align-items:center; justify-content:center;
+  }
+  #lb-overlay.visible { display:flex; }
+  #lb-box {
+    background:var(--bg); border-radius:12px; padding:1.6rem 1.8rem;
+    box-shadow:0 8px 40px rgba(0,0,0,.3); width:90%; max-width:380px; max-height:80vh;
+    display:flex; flex-direction:column;
+  }
+  #lb-box h2 { font-size:1.3rem; font-weight:900; color:var(--fg); margin-bottom:1rem; text-align:center; }
+  #lb-scroll { overflow-y:auto; flex:1; }
+  #lb-full-table { width:100%; border-collapse:collapse; font-family:sans-serif; font-size:.9rem; }
+  #lb-full-table th { color:var(--fg3); font-weight:700; padding:.3rem .4rem; border-bottom:1px solid var(--border); text-align:left; }
+  #lb-full-table th:last-child { text-align:right; }
+  #lb-full-table td { padding:.32rem .4rem; color:var(--fg2); border-bottom:1px solid var(--border); }
+  #lb-full-table td:first-child { font-weight:700; color:var(--fg3); width:1.6em; }
+  #lb-full-table td:nth-child(2) { font-weight:600; color:var(--fg); }
+  #lb-full-table td:last-child { text-align:right; font-weight:700; }
+  #lb-full-table tr.me td { color:#c68a00 !important; }
+  #lb-close { margin-top:1rem; width:100%; padding:.6rem; font-family:sans-serif; font-size:.95rem;
+    font-weight:700; background:var(--fg); color:var(--bg); border:none; border-radius:5px; cursor:pointer; }
+
+  /* Refresh button */
+  .lb-refresh-btn {
+    background:none; border:none; cursor:pointer; color:var(--fg3);
+    font-size:1rem; padding:.2rem .3rem; border-radius:4px; line-height:1;
+    transition:color .15s, transform .15s;
+  }
+  .lb-refresh-btn:hover { color:var(--fg); }
+  @keyframes lb-spin { to { transform:rotate(360deg); } }
+  .lb-refresh-btn.spinning { animation:lb-spin .6s linear; }
+</style>
+</head>
+<body>
+<div id="homescreen">
+  <h1 class="home-title">Throw<br>the Stone</h1>
+  <button class="start-btn" onclick="startGame()">START</button>
+  <button class="info-btn" onclick="openSettings()">Settings</button>
+  <button class="info-btn" onclick="openInfo()">Information</button>
+  <p id="home-highscore"></p>
+  <div id="lb-home">
+    <table id="lb-home-table"></table>
+    <div style="text-align:center;display:flex;align-items:center;justify-content:center;gap:.6rem;">
+      <button id="lb-expand" onclick="openLeaderboard()">See all →</button>
+      <button class="lb-refresh-btn" id="lb-refresh-home" onclick="lbRefreshClick('lb-refresh-home')" title="Refresh">↻</button>
+    </div>
+  </div>
+</div>
+
+<!-- NAME MODAL -->
+<div id="name-overlay">
+  <div id="name-box">
+    <h2>What should you be called?</h2>
+    <p>Others will see this name</p>
+    <input id="name-input" type="text" maxlength="20" placeholder="Your name..." oninput="onNameInput()">
+    <div id="name-error"></div>
+    <div style="display:flex;gap:.6rem;margin-top:1rem;">
+      <button id="name-ok" style="flex:1" onclick="submitName()">Ok</button>
+      <button id="name-cancel" onclick="closeNameModal()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- LEADERBOARD OVERLAY -->
+<div id="lb-overlay">
+  <div id="lb-box">
+    <div style="position:relative;text-align:center;margin-bottom:1rem;">
+      <h2 style="margin:0;display:inline;">Leaderboard</h2>
+      <button class="lb-refresh-btn" id="lb-refresh-full" onclick="lbRefreshClick('lb-refresh-full')" title="Refresh" style="position:absolute;right:0;top:50%;transform:translateY(-50%);">↻</button>
+    </div>
+    <div id="lb-scroll">
+      <table id="lb-full-table">
+        <thead><tr><th>#</th><th>Name</th><th>Score</th></tr></thead>
+        <tbody id="lb-full-body"></tbody>
+      </table>
+    </div>
+    <button id="lb-close" onclick="closeLeaderboard()">Close</button>
+  </div>
+</div>
+
+<!-- SETTINGS SCREEN -->
+<div id="settingsscreen">
+  <button id="settings-back" onclick="closeSettings()">Back</button>
+  <h1 id="settings-title">Settings</h1>
+  <div class="setting-row">
+    <span class="setting-label">Sound</span>
+    <input type="range" id="vol-slider" min="0" max="1" step="0.01" value="1" oninput="setVolume(this.value)">
+  </div>
+  <div class="setting-row">
+    <span class="setting-label">Light / Dark</span>
+    <label class="toggle-wrap">
+      <input type="checkbox" id="dark-toggle" onchange="toggleDark(this.checked)">
+      <div class="toggle-track"></div>
+    </label>
+  </div>
+  <div class="setting-row">
+    <span class="setting-label">Rename</span>
+    <button class="info-btn" style="margin-top:0;padding:.45rem 1rem;font-size:.88rem;" onclick="openRename()">Rename</button>
+  </div>
+  <div class="setting-row">
+    <span class="setting-label">Delete account</span>
+    <button class="info-btn" style="margin-top:0;padding:.45rem 1rem;font-size:.88rem;color:#cc2200;border-color:#cc2200;" onclick="openDelConfirm()">Delete</button>
+  </div>
+</div>
+
+<!-- DELETE CONFIRM -->
+<div id="del-confirm-overlay">
+  <div id="del-box">
+    <h2>Are you sure that you want to delete your account?</h2>
+    <p>You will no longer be seen on the leaderboard</p>
+    <div id="del-btns">
+      <button id="del-confirm-btn">Delete (<span id="del-countdown">5</span>)</button>
+      <button id="del-cancel-btn" onclick="closeDelConfirm()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- DELETE SHOOT CHALLENGE -->
+<div id="del-shoot-overlay">
+  <canvas id="del-canvas"></canvas>
+  <div id="del-fade-overlay"></div>
+</div>
+
+<!-- DELETE GOODBYE -->
+<div id="del-goodbye-overlay">
+  <span id="del-goodbye-text">Goodbye</span>
+</div>
+
+<!-- INFORMATION SCREEN -->
+<div id="infoscreen">
+  <button id="info-back" onclick="closeInfo()">Back</button>
+  <h1 id="info-title">Information</h1>
+  <p id="info-subtitle">Throw the Stone</p>
+
+  <div id="info-entries">
+    <div class="info-entry">
+      <div class="info-text">
+        <div class="info-entry-title">Red target</div>
+        <div class="info-entry-desc">The red target has one life and gives 1 point.</div>
+      </div>
+      <div class="info-canvas-wrap"><canvas id="ic-red" width="70" height="70"></canvas></div>
+    </div>
+
+    <div class="info-entry">
+      <div class="info-text">
+        <div class="info-entry-title">Blue target</div>
+        <div class="info-entry-desc">The blue target has one life, but does not give any points. Instead, hitting it gives 3 more stones.</div>
+      </div>
+      <div class="info-canvas-wrap"><canvas id="ic-blue" width="70" height="70"></canvas></div>
+    </div>
+
+    <div class="info-entry">
+      <div class="info-text">
+        <div class="info-entry-title">Yellow target</div>
+        <div class="info-entry-desc">The yellow target has one life, but does also not give any points. Instead, hitting it gives 10 more stones.</div>
+      </div>
+      <div class="info-canvas-wrap"><canvas id="ic-yellow" width="70" height="70"></canvas></div>
+    </div>
+
+    <div class="info-entry">
+      <div class="info-text">
+        <div class="info-entry-title">Green target</div>
+        <div class="info-entry-desc">The green target has two lives and gives 3 points.</div>
+      </div>
+      <div class="info-canvas-wrap"><canvas id="ic-green" width="70" height="70"></canvas></div>
+    </div>
+
+    <div class="info-entry">
+      <div class="info-text">
+        <div class="info-entry-title">Timer target</div>
+        <div class="info-entry-desc">The time limit for hitting the target depends on your score. If you don't hit it within these seconds, you lose 5 stones for blue targets or 5 points for red targets.</div>
+      </div>
+      <div class="info-canvas-wrap"><canvas id="ic-timer" width="80" height="80"></canvas></div>
+    </div>
+
+    <div class="info-entry">
+      <div class="info-text">
+        <div class="info-entry-title">Moving target</div>
+        <div class="info-entry-desc">All different targets spawn with a chance to move vertically or horizontally.</div>
+      </div>
+      <div class="info-canvas-wrap"><canvas id="ic-moving" width="220" height="80"></canvas></div>
+    </div>
+  </div>
+
+  <p id="info-version">1.0.6</p>
+</div>
+<div id="gamescreen">
+  <canvas id="gameCanvas"></canvas>
+  <div id="score-display">Score: <span id="score">0</span></div>
+  <button id="pause-btn" onclick="pauseGame()">Pause (Esc)</button>
+  <div id="stone-counter"><span id="stone-count">20</span><canvas id="stone-icon" width="28" height="22"></canvas></div>
+  <div id="new-highscore-banner">New high score!</div>
+  <div id="pause-overlay">
+    <div id="pause-box">
+      <h2>Paused</h2>
+      <p id="pause-score">Score: 0</p>
+      <div class="pause-btns">
+        <button id="btn-home" onclick="goHome()">Home</button>
+        <button id="btn-restart" onclick="restartGame()">Restart</button>
+        <button id="btn-continue" onclick="resumeGame()">Continue</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const canvas = document.getElementById('gameCanvas');
+const ctx    = canvas.getContext('2d');
+let W, H;
+function resize(){ W = canvas.width = canvas.offsetWidth; H = canvas.height = canvas.offsetHeight; }
+
+// ── CONSTANTS ─────────────────────────────────────────────────────────
+const GROUND_RATIO       = 0.88;
+const GRAVITY            = 0.00042;   // px/ms²
+const MIN_THROW_SPEED    = 0.85;      // px/ms — minimum to launch a throw
+const VEL_SCALE          = 0.45;      // reduce throw range
+const DEPTH_K            = 0.00032;   // depth growth per (px/ms) per ms — faster shrink
+const PERSP              = 7.5;       // perspective steepness
+const T_DEPTH_MIN        = 0.05;
+const T_DEPTH_MAX        = 0.10;
+const T_BASE_R_RATIO     = 0.15;      // ×2 vs previous 0.075
+const HIT_PX             = 32;
+const HIT_DEPTH_TOL      = 0.05;
+const DRAG_LAG           = 0.55;  // heavy mass feel
+const DRAG_MAX_DIST      = 0.38;  // max drag as fraction of min(W,H) from home
+const BOUNCE_RESTITUTION = 0.30;
+const BOUNCE_MIN_VY      = 0.18;      // px/ms — low enough that second bounce always fires
+const FALL_ACCEL         = 0.0012;    // px/ms² — hit-stone fall acceleration (normal)
+const FALL_ACCEL_MISS    = 0.006;     // px/ms² — miss-stone fall acceleration (faster)
+
+let baseStoneR;
+const gY         = () => H * GROUND_RATIO;
+const homePos    = () => ({ x: W/2, y: gY() - baseStoneR*0.85 });
+const perspScale = d  => 1 / (1 + d * PERSP);
+
+// ── SHADOW HELPER ─────────────────────────────────────────────────────
+// Unified formula used for BOTH held stone and flying stone.
+// r      = current rendered radius of stone
+// stoneY = current screen Y of stone
+// Returns { w, h, alpha } for the ground shadow ellipse.
+function shadowFor(r, stoneY){
+  const ground = gY();
+  const heightAbove = Math.max(0, ground - stoneY - r);
+  const maxH = H * 0.65;
+  const t = Math.min(1, heightAbove / maxH);
+  const w     = r * (1.0 + t * 3.2);
+  const h     = w * 0.26;
+  // Cubic falloff: shadow becomes transparent very quickly as it grows
+  const wRatio = w / r;                         // 1 at rest → 4.2 at max
+  const alpha  = Math.max(0.01, 0.22 / (wRatio * wRatio * wRatio));
+  return { w, h, alpha };
+}
+
+// ── STONE VARIANTS ────────────────────────────────────────────────────
+const STONE_VARIANTS = [
+  [0.88, 0.76,  0.00, '#c0b4a4','#8a7e72','#5c5248','#38332e'],
+  [0.98, 0.66,  0.12, '#b8b0a2','#828070','#524e44','#322e2a'],
+  [0.76, 0.88, -0.10, '#bab2a6','#7e7a6e','#504a42','#30302c'],
+  [0.86, 0.72,  0.20, '#c2aa96','#8a7462','#58442e','#362818'],
+  [0.92, 0.80, -0.15, '#a8b0a8','#6e7868','#484e42','#2c3028'],
+  [0.82, 0.74,  0.08, '#b0a898','#7a7268','#504840','#302c28'],
+  [0.90, 0.66,  0.18, '#c4b29a','#8c7a64','#5a4632','#382a1c'],
+  [0.76, 0.86, -0.22, '#a4a8b2','#6c7080','#444858','#282c38'],
+];
+
+const stoneCache = {};
+function buildTex(size, variant){
+  const [rx,ry,tilt,c0,c1,c2,c3] = STONE_VARIANTS[variant];
+  const cv = document.createElement('canvas');
+  cv.width = cv.height = size*2;
+  const c = cv.getContext('2d');
+  const cx=size, cy=size;
+
+  c.save();
+  c.translate(cx,cy); c.rotate(tilt); c.translate(-cx,-cy);
+
+  const base=c.createRadialGradient(cx*.65,cy*.58,size*.06, cx,cy,size);
+  base.addColorStop(0,c0); base.addColorStop(0.28,c1);
+  base.addColorStop(0.64,c2); base.addColorStop(1,c3);
+  c.fillStyle=base;
+  c.beginPath(); c.ellipse(cx,cy,size*rx,size*ry,0,0,Math.PI*2); c.fill();
+
+  // Highlight baked at top-left — rotates with stone (physically correct)
+  const hx=cx-size*rx*0.28, hy=cy-size*ry*0.28;
+  const hi=c.createRadialGradient(hx,hy,0,hx,hy,size*0.40);
+  hi.addColorStop(0,'rgba(255,255,248,.36)');
+  hi.addColorStop(0.6,'rgba(255,252,240,.09)');
+  hi.addColorStop(1,'rgba(255,252,240,0)');
+  c.fillStyle=hi;
+  c.beginPath(); c.ellipse(hx,hy,size*rx*.42,size*ry*.36,0,0,Math.PI*2); c.fill();
+
+  c.strokeStyle='rgba(20,12,5,.24)'; c.lineWidth=1.0;
+  [
+    [[cx+size*.08,cy-size*.17],[cx+size*.26,cy+size*.08],[cx+size*.11,cy+size*.30]],
+    [[cx-size*.26,cy+size*.08],[cx-size*.08,cy+size*.21]],
+    [[cx+size*.04,cy-size*.28],[cx-size*.11,cy-size*.11],[cx-size*.21,cy-size*.24]],
+  ].forEach(pts=>{
+    c.beginPath(); pts.forEach((p,i)=>i===0?c.moveTo(p[0],p[1]):c.lineTo(p[0],p[1])); c.stroke();
+  });
+
+  for(let i=0;i<65;i++){
+    const a=Math.random()*Math.PI*2, r=Math.random()*size*.80;
+    c.fillStyle=Math.random()>.5?'rgba(255,240,200,.06)':'rgba(0,0,0,.09)';
+    c.beginPath(); c.arc(cx+Math.cos(a)*r*rx,cy+Math.sin(a)*r*ry,Math.random()*size*.065+.4,0,Math.PI*2); c.fill();
+  }
+
+  const rim=c.createRadialGradient(cx,cy,size*.5,cx,cy,size*.96);
+  rim.addColorStop(0,'rgba(0,0,0,0)'); rim.addColorStop(1,'rgba(0,0,0,.50)');
+  c.fillStyle=rim;
+  c.beginPath(); c.ellipse(cx,cy,size*rx,size*ry,0,0,Math.PI*2); c.fill();
+
+  c.restore();
+  return cv;
+}
+function getTex(r,variant=0){
+  const k=(Math.round(r/5)*5)*10+variant;
+  if(!stoneCache[k]) stoneCache[k]=buildTex(Math.max(Math.round(r/5)*5,6),variant);
+  return stoneCache[k];
+}
+
+// ── GAME STATE ────────────────────────────────────────────────────────
+let score=0, targets=[], flyingStones=[], gameRunning=false;
+let stonePos=null, targetPos=null, isDragging=false;
+let dragHistory=[], returnAnim=null, currentVariant=0;
+let stonesLeft = 30;
+let stoneCountdown = null;
+let yellowSpawned = false;
+
+// Draw a stone texture onto any 2d context at (cx,cy) with radius r
+function drawStoneOnCtx(c, cx, cy, r){
+  const base=c.createRadialGradient(cx-r*.28,cy-r*.28,r*.06, cx,cy,r);
+  base.addColorStop(0,'#b0a898'); base.addColorStop(0.28,'#7a7268');
+  base.addColorStop(0.64,'#504840'); base.addColorStop(1,'#302c28');
+  c.fillStyle=base;
+  c.beginPath(); c.ellipse(cx,cy,r*.88,r*.76,0,0,Math.PI*2); c.fill();
+  // Highlight
+  const hi=c.createRadialGradient(cx-r*.25,cy-r*.25,0,cx-r*.2,cy-r*.2,r*.42);
+  hi.addColorStop(0,'rgba(255,255,248,.32)'); hi.addColorStop(1,'rgba(255,255,248,0)');
+  c.fillStyle=hi;
+  c.beginPath(); c.ellipse(cx-r*.2,cy-r*.2,r*.38,r*.32,0,0,Math.PI*2); c.fill();
+  // Rim
+  const rim=c.createRadialGradient(cx,cy,r*.5,cx,cy,r*.96);
+  rim.addColorStop(0,'rgba(0,0,0,0)'); rim.addColorStop(1,'rgba(0,0,0,.5)');
+  c.fillStyle=rim;
+  c.beginPath(); c.ellipse(cx,cy,r*.88,r*.76,0,0,Math.PI*2); c.fill();
+}
+
+function updateStoneCounter(){
+  document.getElementById('stone-count').textContent = stonesLeft;
+  const ic = document.getElementById('stone-icon');
+  const c = ic.getContext('2d');
+  c.clearRect(0,0,ic.width,ic.height);
+  drawStoneOnCtx(c, 14, 11, 9);
+}
+
+// ── HIGH SCORE ────────────────────────────────────────────────────────
+let highScore = parseInt(localStorage.getItem('tts_highscore') || '0');
+let newHighScoreShown = false;
+let newHighScoreTimer = null;
+
+function updateHomeHighscore(){
+  const el = document.getElementById('home-highscore');
+  el.textContent = highScore > 0 ? 'High score: ' + highScore : '';
+}
+updateHomeHighscore();
+
+function checkHighScore(){
+  if(score > highScore){
+    const wasZero = highScore === 0;
+    highScore = score;
+    localStorage.setItem('tts_highscore', highScore);
+    if(!wasZero && !newHighScoreShown){
+      newHighScoreShown = true;
+      playSound('highscore');
+      const banner = document.getElementById('new-highscore-banner');
+      banner.classList.add('visible');
+      if(newHighScoreTimer) clearTimeout(newHighScoreTimer);
+      newHighScoreTimer = setTimeout(()=>{ banner.classList.remove('visible'); }, 2500);
+    }
+  }
+}
+
+// ── TARGETS ───────────────────────────────────────────────────────────
+// Score-based moving target params
+function movingParams(r){
+  if(score >= 50) return { chance:0.30, speedBase:0.00042, speedRng:0.00030 };
+  if(score >= 40) return { chance:0.25, speedBase:0.00030, speedRng:0.00022 };
+  if(score >= 30) return { chance:0.18, speedBase:0.00022, speedRng:0.00016 };
+  return               { chance:0.10, speedBase:0.00015, speedRng:0.00012 }; // score >= 20
+}
+
+// Floating score popups (e.g. "3x")
+let scorePopups = [];
+
+function spawnTarget(){
+  if(targets.length>=3) return;
+  const ground=gY();
+  const baseR=Math.min(W,H)*T_BASE_R_RATIO;
+  const depth=T_DEPTH_MIN+Math.random()*(T_DEPTH_MAX-T_DEPTH_MIN);
+  const s=perspScale(depth);
+  const r=baseR*s;
+  const margin=r*2.2;
+
+  // Try up to 40 times to find a non-overlapping position
+  let sx, sy, tries=0;
+  do {
+    sx = margin + Math.random()*(W - margin*2);
+    sy = margin + Math.random()*(ground*0.52 - margin*2);
+    tries++;
+    const ok = targets.every(t => {
+      const dx=sx-t.screenX, dy=sy-t.screenY;
+      return Math.sqrt(dx*dx+dy*dy) > r + t.renderR + 20;
+    });
+    if(ok || tries>=40) break;
+  } while(true);
+
+  // Moving target
+  const mp = movingParams(r);
+  const moving = score >= 20 && Math.random() < mp.chance;
+  let moveAmp=0, moveSpeed=0, movePhase=0, moveDir='h';
+  if(moving){
+    moveAmp   = r * 1.2 + Math.random() * r * 1.0;
+    moveSpeed = mp.speedBase + Math.random() * mp.speedRng;
+    movePhase = Math.random() * Math.PI * 2;
+    moveDir   = Math.random() < 0.5 ? 'h' : 'v';
+    if(moveDir === 'h'){
+      sx = Math.max(margin + moveAmp, Math.min(W - margin - moveAmp, sx));
+    } else {
+      sy = Math.max(margin + moveAmp, Math.min(gY()*0.52 - margin - moveAmp, sy));
+    }
+  }
+
+  // Green (armored) target: 10% chance at score >= 50, worth 3 pts, 2 lives
+  const green = score >= 30 && Math.random() < 0.10;
+
+  // Blue target: gives 3 stones, no points. Chance decreases with score.
+  const blueChance = Math.max(0.12, 0.42 - score * 0.003);
+  const blue = !green && Math.random() < blueChance;
+
+  // Yellow target: once per game, 10% at score 20-29, then 1% at 30+. No points, +10 stones.
+  const yellowChance = score >= 20 ? 0.02 : 0;
+  const yellow = !green && !blue && !yellowSpawned && Math.random() < yellowChance;
+
+  // Timer target: red, 5s timer, -5 pts on expire. 30% at score >= 40.
+  const timed = !green && !blue && !yellow && score >= 40 && Math.random() < 0.15;
+
+  // Timer blue target: blue, same timer, -5 stones on expire. 15% at score >= 40.
+  const timedBlue = !green && !blue && !yellow && !timed && score >= 40 && Math.random() < 0.15;
+
+  targets.push({
+    screenX: sx, screenY: sy,
+    anchorX: sx, anchorY: sy,
+    depth, baseR, renderR: r,
+    scale:0, born:Date.now(), hit:false, hitTime:0,
+    moving, moveAmp, moveSpeed, movePhase, moveDir,
+    green, blue, yellow, timed, timedBlue,
+    lives: green ? 2 : 1,
+    damaged: false,
+    timerBorn: (timed || timedBlue) ? Date.now() : null,
+    timerDuration: score >= 70 ? 2000 : score >= 60 ? 3000 : score >= 50 ? 4000 : 5000
+  });
+  if(yellow) yellowSpawned = true;
+}
+
+function updateTargets(dt){
+  const now = Date.now();
+  targets.forEach(t => {
+    if(t.moving && !t.hit){
+      t.movePhase += t.moveSpeed * dt;
+      const offset = Math.sin(t.movePhase) * t.moveAmp;
+      if(t.moveDir === 'h'){
+        t.screenX = t.anchorX + offset;
+      } else {
+        t.screenY = t.anchorY + offset;
+      }
+    }
+    // Timer target expiry
+    if((t.timed || t.timedBlue) && !t.hit && t.timerBorn !== null){
+      const elapsed = now - t.timerBorn;
+      if(elapsed >= t.timerDuration){
+        t.hit = true; t.hitTime = now;
+        t.timerBorn = null;
+        if(t.timedBlue){
+          // Deduct 5 stones
+          stonesLeft = Math.max(0, stonesLeft - 5);
+          updateStoneCounter();
+          scorePopups.push({
+            x: t.screenX, y: t.screenY - t.renderR * t.scale * 1.2,
+            text: '-5', stoneIcon: true,
+            size: Math.max(16, t.renderR * t.scale * 0.9),
+            born: now, color: '#cc2200'
+          });
+          // Check if out of stones
+          if(stonesLeft <= 0){
+            setTimeout(()=>{ if(stonesLeft <= 0) showGameOver(); }, 1800);
+          }
+        } else {
+          // Deduct 5 points
+          score = Math.max(0, score - 5);
+          document.getElementById('score').textContent = score;
+          scorePopups.push({
+            x: t.screenX, y: t.screenY - t.renderR * t.scale * 1.2,
+            text: '-5', size: Math.max(16, t.renderR * t.scale * 0.9),
+            born: now, color: '#cc2200'
+          });
+        }
+        setTimeout(()=>{const idx=targets.indexOf(t);if(idx>-1)targets.splice(idx,1);}, 400);
+      }
+    }
+  });
+}
+
+function drawTarget(t){
+  if(t.renderR<1) return;
+  const r=t.renderR;
+
+  // Path line for moving targets
+  if(t.moving && !t.hit && t.scale > 0.1){
+    const lineAlpha = Math.min(0.30, t.scale * 0.30);
+    ctx.save();
+    ctx.globalAlpha = lineAlpha;
+    ctx.strokeStyle = '#aaa';
+    ctx.lineWidth = Math.max(1.5, r * 0.15);
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    if(t.moveDir === 'h'){
+      ctx.moveTo(t.anchorX - t.moveAmp, t.anchorY);
+      ctx.lineTo(t.anchorX + t.moveAmp, t.anchorY);
+    } else {
+      ctx.moveTo(t.anchorX, t.anchorY - t.moveAmp);
+      ctx.lineTo(t.anchorX, t.anchorY + t.moveAmp);
+    }
+    ctx.stroke();
+    // End dots
+    ctx.fillStyle = '#bbb';
+    if(t.moveDir === 'h'){
+      ctx.beginPath(); ctx.arc(t.anchorX - t.moveAmp, t.anchorY, r*0.18, 0, Math.PI*2); ctx.fill();
+      ctx.beginPath(); ctx.arc(t.anchorX + t.moveAmp, t.anchorY, r*0.18, 0, Math.PI*2); ctx.fill();
+    } else {
+      ctx.beginPath(); ctx.arc(t.anchorX, t.anchorY - t.moveAmp, r*0.18, 0, Math.PI*2); ctx.fill();
+      ctx.beginPath(); ctx.arc(t.anchorX, t.anchorY + t.moveAmp, r*0.18, 0, Math.PI*2); ctx.fill();
+    }
+    ctx.restore();
+  }
+
+  ctx.save();
+  ctx.translate(t.screenX,t.screenY); ctx.scale(t.scale,t.scale);
+  ctx.shadowColor='rgba(0,0,0,.22)'; ctx.shadowBlur=14; ctx.shadowOffsetX=2; ctx.shadowOffsetY=5;
+
+  // Color scheme
+  let outerCol;
+  if(t.yellow){
+    outerCol = '#e6a800';
+  } else if(t.timedBlue){
+    outerCol = '#1565c0';
+  } else if(t.blue){
+    outerCol = '#1565c0';
+  } else if(t.green && !t.damaged){
+    outerCol = '#1a8c2a';
+  } else {
+    outerCol = '#cc2200';
+  }
+  const r2 = t.renderR;
+  const rings = [
+    [r2,      outerCol],
+    [r2*.78,  '#fff'],
+    [r2*.56,  outerCol],
+    [r2*.34,  '#fff'],
+    [r2*.15,  outerCol],
+  ];
+  rings.forEach(([rad,col],i)=>{
+    if(i>0){ctx.shadowBlur=0;ctx.shadowOffsetX=0;ctx.shadowOffsetY=0;}
+    ctx.fillStyle=col; ctx.beginPath(); ctx.arc(0,0,rad,0,Math.PI*2); ctx.fill();
+  });
+
+  // Timer arc for timed targets (red or blue)
+  if((t.timed || t.timedBlue) && !t.hit && t.timerBorn !== null){
+    const elapsed = Date.now() - t.timerBorn;
+    const frac = Math.max(0, 1 - elapsed / t.timerDuration);
+    const arcR = r2 + r2*0.18;
+    const startAngle = -Math.PI/2;
+    const endAngle = startAngle + frac * Math.PI * 2;
+    ctx.beginPath();
+    ctx.arc(0, 0, arcR, startAngle, endAngle);
+    ctx.strokeStyle = frac > 0.3 ? '#22cc44' : '#ffaa00';
+    ctx.lineWidth = r2 * 0.12;
+    ctx.lineCap = 'round';
+    ctx.shadowBlur=0; ctx.shadowOffsetX=0; ctx.shadowOffsetY=0;
+    ctx.stroke();
+    // Track (grey background arc)
+    ctx.beginPath();
+    ctx.arc(0, 0, arcR, endAngle, startAngle + Math.PI*2);
+    ctx.strokeStyle = 'rgba(0,0,0,.15)';
+    ctx.lineWidth = r2 * 0.12;
+    ctx.stroke();
+  }
+
+  ctx.restore();
+}
+
+function drawPopups(){
+  const now = Date.now();
+  scorePopups = scorePopups.filter(p => now - p.born < 1200);
+  scorePopups.forEach(p => {
+    const age = (now - p.born) / 1200;
+    const alpha = Math.max(0, 1 - age);
+    const yOff = -44 * age;
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.font = 'bold ' + Math.round(p.size) + 'px sans-serif';
+    ctx.fillStyle = p.color || '#1a8c2a';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    if(p.stoneIcon){
+      // Draw "+3" text then a mini stone to the right
+      const tw = ctx.measureText(p.text).width;
+      const sr = p.size * 0.55;
+      const gap = sr * 0.5;
+      const totalW = tw + gap + sr*2;
+      const startX = p.x - totalW/2;
+      ctx.textAlign = 'left';
+      ctx.fillText(p.text, startX, p.y + yOff);
+      drawStoneOnCtx(ctx, startX + tw + gap + sr, p.y + yOff, sr);
+    } else {
+      ctx.fillText(p.text, p.x, p.y + yOff);
+    }
+    ctx.restore();
+  });
+
+  // Stone countdown — shown in center when <=5 stones left after a throw
+  if(stoneCountdown){
+    const age = (now - stoneCountdown.born) / 500;
+    if(age >= 1){ stoneCountdown = null; }
+    else {
+      const alpha = 0.55 * (1 - age);
+      const size = Math.min(W, H) * 0.22;
+      ctx.save();
+      ctx.globalAlpha = alpha;
+      ctx.font = 'bold ' + Math.round(size) + 'px sans-serif';
+      ctx.fillStyle = stoneCountdown.value <= 2 ? '#cc2200' : '#333';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(stoneCountdown.value, W/2, H * 0.42);
+      ctx.restore();
+    }
+  }
+}
+
+// ── FLYING STONE ──────────────────────────────────────────────────────
+// States:
+//   flying → hit    → falling      (carries impact vy, accelerates, bounces, dies)
+//   flying → missed → falling_miss (carries current vy, accelerates, no bounce, just dies)
+class FlyingStone {
+  constructor(x,y,vx,vy,baseR,variant){
+    this.x=x; this.y=y;
+    this.vx=vx*VEL_SCALE; this.vy=vy*VEL_SCALE;
+    this.baseR=baseR; this.variant=variant;
+    this.rot=Math.random()*Math.PI*2;
+    const spd=Math.sqrt(this.vx*this.vx+this.vy*this.vy);
+    this.rotSpd=(Math.random()-.5)*Math.min(spd*0.016,0.028);
+    this.depth=0;
+    this.depthRate=spd*DEPTH_K;
+    this.scale=1; this.alpha=1;
+    this.state='flying';
+    this.fallVy=0;
+    this.bounceCount=0;
+    this.scaleAtLand=1;
+    this.dieTimer=0;
+    this.groundY=0;
+
+    // Effective gravity: slower throws fall faster in screen space.
+    // A fast throw (large depthRate) rushes away before gravity matters much.
+    // A slow throw (small depthRate) hangs close and should drop to ground sooner.
+    // Reference depthRate for "normal" gravity: ~0.04 per second = 0.00004/ms
+    const refRate = 0.00028;
+    const gravityScale = Math.max(0.8, Math.min(30.0, refRate / Math.max(this.depthRate, 0.000008)));
+    this.effectiveGravity = GRAVITY * gravityScale;
+  }
+
+  // Hit a target → fall with bounce
+  startFalling(){
+    this.state='falling';
+    this.fallVy = Math.max(this.vy, 0);
+    this.depth += 0.04;
+    this.scaleAtLand = perspScale(this.depth);
+    this.scale = this.scaleAtLand;
+    this.groundY = gY() - this.baseR*this.scaleAtLand*0.28;
+  }
+
+  // Missed / went off screen → fall without bounce
+  startFallingMiss(){
+    this.state = 'falling_miss';
+    this.fallVy = Math.max(this.vy, 0);
+    this.scaleAtLand = Math.max(this.scale, 0.08);
+    this.scale = this.scaleAtLand;
+    this.groundY = gY() - this.baseR * this.scaleAtLand * 0.28;
+    if(this.y >= this.groundY) this.y = this.groundY - 1;
+  }
+
+  update(dt){
+    const ground=gY();
+
+    if(this.state==='flying'){
+      this.vy += this.effectiveGravity * dt;
+      this.x  += this.vx*dt;
+      this.y  += this.vy*dt;
+      this.depth += this.depthRate*dt;
+      this.scale  = perspScale(this.depth);
+      this.rot   += this.rotSpd*dt;
+
+      // Hit check — pure screen-space: if stone center is within hitZone of target center, it's a hit.
+      // No depth gating needed — visually if they overlap, it counts.
+      for(let i=targets.length-1;i>=0;i--){
+        const t=targets[i]; if(t.hit) continue;
+
+        const dx=this.x-t.screenX, dy=this.y-t.screenY;
+        // Weak throw = hits edge. Strong throw = must hit closer to center.
+        // depthRate is proportional to throw speed.
+        const speedT = Math.min(1, this.depthRate / 0.000055);
+        const stoneR = this.baseR * this.scale;
+        // hitZone = stone radius + target edge contribution (more for slow throws)
+        const hitZone = stoneR * 0.6 + HIT_PX + t.renderR * t.scale * Math.pow(1 - speedT, 1.6);
+        if(Math.sqrt(dx*dx+dy*dy) < hitZone){
+          // Green target with 2 lives: first hit damages, second hit destroys
+          if(t.green && !t.damaged && t.lives === 2){
+            t.damaged = true;
+            t.lives = 1;
+            playSound('hit');
+            this.startFalling();
+            return;
+          }
+
+          t.hit=true; t.hitTime=Date.now();
+          t.timerBorn = null; // cancel timer if active
+
+          if(t.blue){
+            stonesLeft = Math.min(99, stonesLeft + 3);
+            updateStoneCounter();
+            scorePopups.push({
+              x: t.screenX, y: t.screenY - t.renderR * t.scale * 1.2,
+              text: '+3', stoneIcon: true,
+              size: Math.max(14, t.renderR * t.scale * 0.85),
+              born: Date.now(), color: '#1565c0'
+            });
+          } else if(t.timedBlue){
+            // Stone hit timedBlue before timer — no reward, just remove
+          } else if(t.timed){
+            // Stone hit red timed before timer — give 1 point
+            score += 1;
+            document.getElementById('score').textContent = score;
+            checkHighScore();
+          } else if(t.yellow){
+            stonesLeft = Math.min(99, stonesLeft + 10);
+            updateStoneCounter();
+            scorePopups.push({
+              x: t.screenX, y: t.screenY - t.renderR * t.scale * 1.2,
+              text: '+10', stoneIcon: true,
+              size: Math.max(14, t.renderR * t.scale * 0.85),
+              born: Date.now(), color: '#c68a00'
+            });
+          } else {
+            const pts = t.green ? 3 : 1;
+            score += pts;
+            document.getElementById('score').textContent=score;
+            checkHighScore();
+            if(t.green){
+              scorePopups.push({
+                x: t.screenX, y: t.screenY - t.renderR * t.scale * 1.2,
+                text: '3x', size: Math.max(16, t.renderR * t.scale * 0.9),
+                born: Date.now(), color: '#1a8c2a'
+              });
+            }
+          }
+
+          playSound('hit');
+          this.startFalling();
+          setTimeout(()=>{const idx=targets.indexOf(t);if(idx>-1)targets.splice(idx,1);},400);
+          return;
+        }
+      }
+
+      // Off screen sideways → delete
+      if(this.x < -300 || this.x > W+300){
+        this.state = 'dead'; return;
+      }
+      // Off screen vertically → delete
+      if(this.y < -400 || this.y > ground + 100){
+        this.state = 'dead'; return;
+      }
+      // Vanished into distance → just delete (too small to see)
+      if(this.scale < 0.018){
+        this.state = 'dead'; return;
+      }
+
+      // Stone reached the ground while still flying (missed everything)
+      const flyGroundY = gY() - this.baseR * this.scale * 0.28;
+      if(this.y >= flyGroundY){
+        this.y = flyGroundY;
+        this.scaleAtLand = this.scale;
+        this.groundY = flyGroundY;
+        this.fallVy = this.vy;
+        this.state = 'falling_miss';
+        playSound('bounce'); // first impact always plays
+      }
+
+    } else if(this.state==='falling'){
+      // Constant acceleration — starts at impact speed, gets faster
+      this.fallVy += FALL_ACCEL * dt;
+      this.y      += this.fallVy * dt;
+      this.rot    += this.rotSpd * dt * 1.4;
+      // Scale is FROZEN at scaleAtLand — no more shrinking during fall
+
+      if(this.y >= this.groundY){
+        this.y = this.groundY;
+        if(this.fallVy > BOUNCE_MIN_VY && this.bounceCount < 2){
+          this.fallVy = -this.fallVy * BOUNCE_RESTITUTION;
+          this.bounceCount++;
+          this.rotSpd *= 0.65;
+          playSound(this.bounceCount === 1 ? 'bounce' : 'bounce2');
+        } else {
+          this.state = 'dying';
+          this.scale = this.scaleAtLand;
+          this.dieTimer = 0;
+        }
+      }
+
+    } else if(this.state==='falling_miss'){
+      this.fallVy += FALL_ACCEL_MISS * dt;
+      this.y      += this.fallVy * dt;
+      this.rot    += this.rotSpd * dt * 1.4;
+
+      if(this.y >= this.groundY){
+        this.y = this.groundY;
+        if(this.fallVy > BOUNCE_MIN_VY && this.bounceCount < 1){
+          this.fallVy = -this.fallVy * BOUNCE_RESTITUTION;
+          this.bounceCount++;
+          this.rotSpd *= 0.65;
+          // no sound — first impact already played at ground contact
+        } else {
+          this.state = 'dying';
+          this.scale = this.scaleAtLand;
+          this.dieTimer = 0;
+        }
+      }
+
+    } else if(this.state==='dying'){
+      this.dieTimer += dt/2200;
+      this.scale  = Math.max(0, this.scaleAtLand*(1-this.dieTimer));
+      this.alpha  = Math.max(0, 1-this.dieTimer*1.4);
+      if(this.dieTimer>=1) this.state='dead';
+    }
+  }
+
+  draw(){
+    if(this.state==='dead') return;
+    const r=this.baseR*this.scale;
+    if(r<1) return;
+    const ground=gY();
+
+    // Shadow — uses same formula as held stone (seamless transition)
+    const sh=shadowFor(r, this.y);
+    ctx.save();
+    ctx.globalAlpha=sh.alpha*this.alpha;
+    ctx.fillStyle='rgba(0,0,0,.85)';
+    ctx.beginPath(); ctx.ellipse(this.x, ground-2, sh.w, sh.h, 0, 0, Math.PI*2); ctx.fill();
+    ctx.restore();
+
+    // Stone
+    ctx.save();
+    ctx.globalAlpha=this.alpha;
+    ctx.translate(this.x,this.y); ctx.rotate(this.rot); ctx.scale(this.scale,this.scale);
+    const tex=getTex(this.baseR,this.variant), s=this.baseR;
+    ctx.drawImage(tex,-s,-s,s*2,s*2);
+    ctx.restore();
+  }
+}
+
+// ── BACKGROUND ────────────────────────────────────────────────────────
+function drawBackground(){
+  const ground=gY();
+  const dark = document.body.classList.contains('dark');
+  // Sky
+  ctx.fillStyle = dark ? '#181818' : '#fff';
+  ctx.fillRect(0,0,W,ground);
+  // Ground
+  const gr=ctx.createLinearGradient(0,ground,0,H);
+  if(dark){
+    gr.addColorStop(0,'#2e2a26'); gr.addColorStop(0.1,'#252220'); gr.addColorStop(1,'#1e1c1a');
+  } else {
+    gr.addColorStop(0,'#ddd8d0'); gr.addColorStop(0.1,'#d0cbc2'); gr.addColorStop(1,'#bfb9b0');
+  }
+  ctx.fillStyle=gr; ctx.fillRect(0,ground,W,H-ground);
+  ctx.strokeStyle= dark ? 'rgba(255,255,255,.12)' : 'rgba(0,0,0,.15)'; ctx.lineWidth=2;
+  ctx.beginPath(); ctx.moveTo(0,ground); ctx.lineTo(W,ground); ctx.stroke();
+  ctx.strokeStyle= dark ? 'rgba(255,255,255,.03)' : 'rgba(0,0,0,.035)'; ctx.lineWidth=1;
+  const vx=W/2;
+  for(let i=-9;i<=9;i++){ ctx.beginPath(); ctx.moveTo(vx+i*W*.11,ground); ctx.lineTo(vx+i*W*.72,H); ctx.stroke(); }
+  for(let i=1;i<=5;i++){ const ly=ground+(H-ground)*(i/5)*.85; ctx.beginPath(); ctx.moveTo(0,ly); ctx.lineTo(W,ly); ctx.stroke(); }
+}
+
+// ── HELD STONE ────────────────────────────────────────────────────────
+function drawHeldStone(){
+  if(!stonePos || stonesLeft <= 0) return;
+  const r=baseStoneR, ground=gY();
+
+  // Shadow — same shadowFor() function as flying stone
+  const sh=shadowFor(r, stonePos.y);
+  ctx.save();
+  ctx.globalAlpha=sh.alpha;
+  ctx.fillStyle='rgba(0,0,0,.85)';
+  ctx.beginPath(); ctx.ellipse(stonePos.x,ground-2,sh.w,sh.h,0,0,Math.PI*2); ctx.fill();
+  ctx.restore();
+
+  ctx.save();
+  ctx.translate(stonePos.x,stonePos.y); ctx.rotate(stonePos.rot||0);
+  ctx.drawImage(getTex(r,currentVariant),-r,-r,r*2,r*2);
+  ctx.restore();
+}
+
+// ── INPUT ─────────────────────────────────────────────────────────────
+function getPos(e){
+  const rect=canvas.getBoundingClientRect();
+  const sx=W/rect.width, sy=H/rect.height;
+  const t=(e.touches&&e.touches[0])||(e.changedTouches&&e.changedTouches[0]);
+  if(t) return{x:(t.clientX-rect.left)*sx,y:(t.clientY-rect.top)*sy};
+  return{x:(e.clientX-rect.left)*sx,y:(e.clientY-rect.top)*sy};
+}
+function onDown(e){
+  if(!gameRunning||!stonePos||stonesLeft<=0) return;
+  const p=getPos(e);
+  if(Math.sqrt((p.x-stonePos.x)**2+(p.y-stonePos.y)**2)<baseStoneR*1.7){
+    isDragging=true; returnAnim=null;
+    targetPos={x:stonePos.x,y:stonePos.y};
+    dragHistory=[{x:p.x,y:p.y,t:performance.now()}];
+  }
+}
+function onMove(e){
+  if(!isDragging) return;
+  e.preventDefault();
+  const p=getPos(e);
+  const home=homePos();
+  const maxDist = Math.min(W,H) * DRAG_MAX_DIST;
+  const dx = p.x - home.x, dy = p.y - home.y;
+  const dist = Math.sqrt(dx*dx + dy*dy);
+  if(dist > maxDist){
+    // Clamp to circle: push back to edge
+    const scale = maxDist / dist;
+    p.x = home.x + dx * scale;
+    p.y = home.y + dy * scale;
+  }
+  targetPos={x:p.x,y:p.y};
+  dragHistory.push({x:p.x,y:p.y,t:performance.now()});
+  if(dragHistory.length>18) dragHistory.shift();
+}
+function onUp(e){
+  if(!isDragging) return;
+  isDragging=false;
+  const now=performance.now();
+  const recent=dragHistory.filter(p=>now-p.t<85);
+  let vx=0,vy=0;
+  if(recent.length>=2){
+    const o=recent[0],n=recent[recent.length-1];
+    const dt=n.t-o.t;
+    if(dt>1){vx=(n.x-o.x)/dt; vy=(n.y-o.y)/dt;}
+  }
+  const speed=Math.sqrt(vx*vx+vy*vy);
+  const rx=stonePos.x, ry=stonePos.y;
+  dragHistory=[];
+  if(speed>=MIN_THROW_SPEED){
+    stonePos=null; targetPos=null;
+    stonesLeft--;
+    updateStoneCounter();
+    // Show countdown in center when 5 or fewer stones remain
+    if(stonesLeft <= 5 && stonesLeft > 0){
+      stoneCountdown = { value: stonesLeft, born: Date.now() };
+    }
+    flyingStones.push(new FlyingStone(rx,ry,vx,vy,baseStoneR,currentVariant));
+    currentVariant=(currentVariant+1)%STONE_VARIANTS.length;
+    playSound('throw');
+    if(stonesLeft <= 0){
+      // Schedule game over, but re-check stonesLeft at that time
+      // (player may have hit a blue target in the meantime and gained stones)
+      setTimeout(()=>{ if(stonesLeft <= 0) showGameOver(); }, 1800);
+      setTimeout(resetStone, 520);
+    } else {
+      setTimeout(resetStone,520);
+    }
+  } else {
+    returnAnim={fromX:stonePos.x,fromY:stonePos.y,t0:performance.now()};
+    targetPos=null;
+  }
+}
+
+// ── DRAG LAG ──────────────────────────────────────────────────────────
+function updateDrag(dt){
+  if(!isDragging||!stonePos||!targetPos) return;
+  const f=1-Math.pow(DRAG_LAG,dt/16);
+  stonePos.x+=(targetPos.x-stonePos.x)*f;
+  stonePos.y+=(targetPos.y-stonePos.y)*f;
+  stonePos.rot=(stonePos.x-homePos().x)*.010;
+}
+
+// ── SNAP BACK ─────────────────────────────────────────────────────────
+function updateReturn(){
+  if(!returnAnim||!stonePos) return;
+  const home=homePos();
+  const p=Math.min(1,(performance.now()-returnAnim.t0)/300);
+  const e=1-Math.pow(1-p,3);
+  stonePos.x=returnAnim.fromX+(home.x-returnAnim.fromX)*e;
+  stonePos.y=returnAnim.fromY+(home.y-returnAnim.fromY)*e;
+  stonePos.rot*=(1-e);
+  if(p>=1){stonePos.x=home.x;stonePos.y=home.y;stonePos.rot=0;returnAnim=null;}
+}
+
+function resetStone(){
+  const h=homePos();
+  stonePos={x:h.x,y:h.y,rot:0};
+  targetPos=null; isDragging=false; dragHistory=[]; returnAnim=null;
+}
+
+// ── MAIN LOOP ─────────────────────────────────────────────────────────
+let lastTime=0, spawnTimer=0, nextSpawnIn=0;
+function randomSpawnDelay(){ return 800 + Math.random()*3200; } // 0.8s – 4s
+function loop(ts){
+  if(!gameRunning || gamePaused) return;
+  const dt=Math.min(ts-lastTime,50); lastTime=ts;
+  ctx.clearRect(0,0,W,H);
+  drawBackground();
+  updateDrag(dt);
+  updateReturn();
+
+  spawnTimer+=dt;
+
+  // Always ensure at least 1 target exists — spawn immediately if none
+  if(targets.length===0){
+    spawnTarget();
+    spawnTimer=0;
+    nextSpawnIn=randomSpawnDelay();
+  } else if(targets.length<3 && spawnTimer>=nextSpawnIn){
+    spawnTarget();
+    spawnTimer=0;
+    nextSpawnIn=randomSpawnDelay();
+  }
+  targets.forEach(t=>{
+    t.scale=t.hit?Math.max(0,1-(Date.now()-t.hitTime)/300):Math.min(1,(Date.now()-t.born)/320);
+  });
+  updateTargets(dt);
+
+  flyingStones.forEach(s=>s.update(dt));
+  flyingStones=flyingStones.filter(s=>s.state!=='dead');
+
+  const drawables = [];
+  targets.forEach(t => drawables.push({ depth: t.depth, screenY: t.screenY, type:'target', draw: () => drawTarget(t) }));
+  flyingStones.forEach(s => {
+    let d, sy;
+    if(s.state === 'flying'){
+      // Use screen Y to determine z: stone lower on screen = in front of higher targets
+      // If stone is BELOW target on screen (y > target.screenY), stone is in front → smaller depth value
+      // We mix screen-Y into the sort key: lower screenY on stone = appears behind
+      d = s.depth;
+      sy = s.y;
+    } else {
+      // After hit: always in front (depth = -1)
+      d = -1; sy = 9999;
+    }
+    drawables.push({ depth: d, screenY: sy, type:'stone', draw: () => s.draw() });
+  });
+  // Sort: higher depth = further back = drawn first
+  // For ties or cross-over: if stone.y > target.screenY → stone is in front (draw after)
+  drawables.sort((a, b) => {
+    // Both are targets or both stones: sort by depth
+    if(a.type === b.type) return b.depth - a.depth;
+    // One is a stone, one is a target: stone is in front if stone.y >= target.screenY
+    const stone  = a.type === 'stone' ? a : b;
+    const target = a.type === 'target' ? a : b;
+    const stoneInFront = stone.screenY >= target.screenY;
+    // If stone is in front, it should be drawn after target → stone gets higher index
+    if(a.type === 'stone') return stoneInFront ? 1 : -1;
+    else                    return stoneInFront ? -1 : 1;
+  });
+  drawables.forEach(d => d.draw());
+  drawHeldStone();
+  drawPopups();
+  requestAnimationFrame(loop);
+}
+
+// ── AUDIO ─────────────────────────────────────────────────────────────
+let audioCtx = null;
+let masterGain = null;
+
+function getAudio(){
+  if(!audioCtx){
+    audioCtx = new (window.AudioContext||window.webkitAudioContext)();
+    masterGain = audioCtx.createGain();
+    masterGain.connect(audioCtx.destination);
+  }
+  if(audioCtx.state==='suspended') audioCtx.resume();
+  masterGain.gain.value = masterVolume;
+  return audioCtx;
+}
+
+// Helper: connect final gain node to master instead of destination
+function dest(){ return masterGain; }
+
+function playSound(type){
+  try {
+    const ac = getAudio();
+    const now = ac.currentTime;
+
+    if(type === 'throw'){
+      // Whoosh — air rush with a quick impact feel, like a real throw
+      const len = ac.sampleRate * 0.18;
+      const buf = ac.createBuffer(1, len, ac.sampleRate);
+      const d = buf.getChannelData(0);
+      for(let i=0;i<len;i++){
+        const t2 = i/len;
+        // Attack then decay, slight pitch character
+        d[i] = (Math.random()*2-1) * Math.sin(t2*Math.PI) * 0.9;
+      }
+      const src = ac.createBufferSource(); src.buffer=buf;
+      const filt = ac.createBiquadFilter(); filt.type='bandpass';
+      filt.frequency.setValueAtTime(1400,now); filt.frequency.exponentialRampToValueAtTime(500,now+0.18);
+      filt.Q.value = 0.5;
+      const gain = ac.createGain(); gain.gain.setValueAtTime(0.22,now); gain.gain.exponentialRampToValueAtTime(0.001,now+0.18);
+      src.connect(filt); filt.connect(gain); gain.connect(dest());
+      src.start(now);
+
+    } else if(type === 'hit'){
+      // Lighter, slightly higher thud — stone hitting target
+      const osc = ac.createOscillator(); osc.type='sine';
+      osc.frequency.setValueAtTime(220,now); osc.frequency.exponentialRampToValueAtTime(80,now+0.12);
+      const g = ac.createGain(); g.gain.setValueAtTime(0.42,now); g.gain.exponentialRampToValueAtTime(0.001,now+0.18);
+      osc.connect(g); g.connect(dest()); osc.start(now); osc.stop(now+0.20);
+      // Crack layer — quieter
+      const len2 = ac.sampleRate*0.06;
+      const buf2 = ac.createBuffer(1,len2,ac.sampleRate);
+      const d2 = buf2.getChannelData(0);
+      for(let i=0;i<len2;i++) d2[i]=(Math.random()*2-1)*Math.pow(1-i/len2,1.8);
+      const src2 = ac.createBufferSource(); src2.buffer=buf2;
+      const g2 = ac.createGain(); g2.gain.setValueAtTime(0.28,now); g2.gain.exponentialRampToValueAtTime(0.001,now+0.06);
+      src2.connect(g2); g2.connect(dest()); src2.start(now);
+
+    } else if(type === 'bounce'){
+      // Lighter ground impact — higher and quieter than before
+      const osc = ac.createOscillator(); osc.type='sine';
+      osc.frequency.setValueAtTime(160,now); osc.frequency.exponentialRampToValueAtTime(60,now+0.10);
+      const g = ac.createGain(); g.gain.setValueAtTime(0.38,now); g.gain.exponentialRampToValueAtTime(0.001,now+0.13);
+      osc.connect(g); g.connect(dest()); osc.start(now); osc.stop(now+0.15);
+      // Short grit layer
+      const len3 = ac.sampleRate*0.05;
+      const buf3 = ac.createBuffer(1,len3,ac.sampleRate);
+      const d3 = buf3.getChannelData(0);
+      for(let i=0;i<len3;i++) d3[i]=(Math.random()*2-1)*Math.pow(1-i/len3,1.5);
+      const src3 = ac.createBufferSource(); src3.buffer=buf3;
+      const filt3 = ac.createBiquadFilter(); filt3.type='lowpass'; filt3.frequency.value=900;
+      const g3 = ac.createGain(); g3.gain.setValueAtTime(0.18,now); g3.gain.exponentialRampToValueAtTime(0.001,now+0.05);
+      src3.connect(filt3); filt3.connect(g3); g3.connect(dest()); src3.start(now);
+
+    } else if(type === 'bounce2'){
+      // Second ground contact — noticeably quieter than first
+      const osc = ac.createOscillator(); osc.type='sine';
+      osc.frequency.setValueAtTime(150,now); osc.frequency.exponentialRampToValueAtTime(60,now+0.09);
+      const g = ac.createGain(); g.gain.setValueAtTime(0.18,now); g.gain.exponentialRampToValueAtTime(0.001,now+0.11);
+      osc.connect(g); g.connect(dest()); osc.start(now); osc.stop(now+0.12);
+
+    } else if(type === 'click'){
+      // Soft UI click
+      const osc = ac.createOscillator(); osc.type='sine'; osc.frequency.value=600;
+      const g = ac.createGain(); g.gain.setValueAtTime(0.18,now); g.gain.exponentialRampToValueAtTime(0.001,now+0.05);
+      osc.connect(g); g.connect(dest()); osc.start(now); osc.stop(now+0.06);
+
+    } else if(type === 'pause'){
+      // Two-tone descending click
+      [0, 0.06].forEach((offset,i) => {
+        const osc = ac.createOscillator(); osc.type='sine'; osc.frequency.value = 500 - i*120;
+        const g = ac.createGain(); g.gain.setValueAtTime(0.15,now+offset); g.gain.exponentialRampToValueAtTime(0.001,now+offset+0.05);
+        osc.connect(g); g.connect(dest()); osc.start(now+offset); osc.stop(now+offset+0.06);
+      });
+
+    } else if(type === 'resume'){
+      // Two-tone ascending click
+      [0, 0.06].forEach((offset,i) => {
+        const osc = ac.createOscillator(); osc.type='sine'; osc.frequency.value = 380 + i*140;
+        const g = ac.createGain(); g.gain.setValueAtTime(0.15,now+offset); g.gain.exponentialRampToValueAtTime(0.001,now+offset+0.05);
+        osc.connect(g); g.connect(dest()); osc.start(now+offset); osc.stop(now+offset+0.06);
+      });
+
+    } else if(type === 'highscore'){
+      // Celebratory ascending arpeggio
+      [0, 0.10, 0.20, 0.32].forEach((offset, i) => {
+        const freqs = [330, 415, 495, 660];
+        const osc = ac.createOscillator(); osc.type='triangle'; osc.frequency.value=freqs[i];
+        const g = ac.createGain(); g.gain.setValueAtTime(0.22,now+offset); g.gain.exponentialRampToValueAtTime(0.001,now+offset+0.18);
+        osc.connect(g); g.connect(dest()); osc.start(now+offset); osc.stop(now+offset+0.2);
+      });
+
+    } else if(type === 'gameover'){
+      // Descending sad three-note tone
+      [0, 0.18, 0.38].forEach((offset, i) => {
+        const freqs = [280, 210, 160];
+        const osc = ac.createOscillator(); osc.type='triangle'; osc.frequency.value=freqs[i];
+        const g = ac.createGain(); g.gain.setValueAtTime(0.28,now+offset); g.gain.exponentialRampToValueAtTime(0.001,now+offset+0.22);
+        osc.connect(g); g.connect(dest()); osc.start(now+offset); osc.stop(now+offset+0.25);
+      });
+    }
+  } catch(e){}
+}
+
+// ── START ─────────────────────────────────────────────────────────────
+function startGame(){
+  playSound('click');
+  document.getElementById('homescreen').style.display='none';
+  document.getElementById('gamescreen').style.display='block';
+  resize();
+  baseStoneR=Math.min(W,H)*.11;
+  gameRunning=true; gamePaused=false; score=0; currentVariant=0;
+  stonesLeft=30; stoneCountdown=null; updateStoneCounter();
+  document.getElementById('pause-box').querySelector('h2').textContent = 'Paused';
+  document.getElementById('btn-continue').style.display = 'block';
+  document.getElementById('btn-restart').style.display = 'none';
+  newHighScoreShown=false;
+  document.getElementById('new-highscore-banner').classList.remove('visible');
+  document.getElementById('score').textContent='0';
+  targets=[]; flyingStones=[]; spawnTimer=0; nextSpawnIn=0; scorePopups=[]; yellowSpawned=false;
+  resetStone();
+  canvas.removeEventListener('mousedown', onDown);
+  canvas.removeEventListener('mousemove', onMove);
+  canvas.removeEventListener('mouseup',   onUp);
+  canvas.removeEventListener('mouseleave',onUp);
+  canvas.removeEventListener('touchstart',onDown);
+  canvas.removeEventListener('touchmove', onMove);
+  canvas.removeEventListener('touchend',  onUp);
+  canvas.addEventListener('mousedown', onDown);
+  canvas.addEventListener('mousemove', onMove);
+  canvas.addEventListener('mouseup',   onUp);
+  canvas.addEventListener('mouseleave',onUp);
+  canvas.addEventListener('touchstart',onDown,{passive:false});
+  canvas.addEventListener('touchmove', onMove,{passive:false});
+  canvas.addEventListener('touchend',  onUp);
+  lastTime=performance.now();
+  requestAnimationFrame(loop);
+}
+
+let gamePaused = false;
+
+function restartGame(){
+  playSound('click');
+  document.getElementById('pause-overlay').classList.remove('visible');
+  startGame();
+}
+
+function showGameOver(){
+  if(!gameRunning) return;
+  gameRunning = false;
+  playSound('gameover');
+  submitScore();
+  document.getElementById('pause-box').querySelector('h2').textContent = 'Game Over';
+  document.getElementById('pause-score').textContent = 'Score: ' + score;
+  document.getElementById('btn-continue').style.display = 'none';
+  document.getElementById('btn-restart').style.display = 'block';
+  document.getElementById('pause-overlay').classList.add('visible');
+  updateHomeHighscore();
+}
+
+function pauseGame(){
+  if(!gameRunning || gamePaused) return;
+  gamePaused = true;
+  playSound('pause');
+  document.getElementById('pause-score').textContent = 'Score: ' + score;
+  document.getElementById('pause-overlay').classList.add('visible');
+}
+
+function resumeGame(){
+  if(!gamePaused) return;
+  gamePaused = false;
+  playSound('resume');
+  document.getElementById('pause-overlay').classList.remove('visible');
+  lastTime = performance.now();
+  requestAnimationFrame(loop);
+}
+
+function goHome(){
+  playSound('click');
+  gamePaused = false; gameRunning = false;
+  document.getElementById('pause-overlay').classList.remove('visible');
+  document.getElementById('gamescreen').style.display='none';
+  document.getElementById('homescreen').style.display='flex';
+  updateHomeHighscore();
+  refreshLeaderboard();
+  submitScore();
+  canvas.removeEventListener('mousedown', onDown);
+  canvas.removeEventListener('mousemove', onMove);
+  canvas.removeEventListener('mouseup',   onUp);
+  canvas.removeEventListener('mouseleave',onUp);
+  canvas.removeEventListener('touchstart',onDown);
+  canvas.removeEventListener('touchmove', onMove);
+  canvas.removeEventListener('touchend',  onUp);
+}
+
+document.addEventListener('keydown', e => {
+  if(e.key === 'Escape'){
+    if(gamePaused){ resumeGame(); } else { pauseGame(); }
+  }
+});
+window.addEventListener('blur', () => { if(gameRunning && !gamePaused) pauseGame(); });
+
+// ── SUPABASE / LEADERBOARD ───────────────────────────────────────────
+const SB_URL  = 'https://dwqcwfbtorbpyqwxjksi.supabase.co';
+const SB_KEY  = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR3cWN3ZmJ0b3JicHlxd3hqa3NpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM3MjkxODgsImV4cCI6MjA4OTMwNTE4OH0.YB8qjsWA0glHt7qp_DR5-VSE9qm6mbLrrFu_2N_ijkw';
+
+const PROFANITY = [
+  // ── English: sexual / obscene ──
+  'fuck','fucker','fucking','fucked','fucks','fuckup','fuckface','fuckhead','fuckboy','fuckwit',
+  'motherfucker','motherfucking','clusterfuck','mindfuck','buttfuck','goatfuck',
+  'shit','shitting','shitty','shitter','bullshit','horseshit','shitstain','shitstorm','shitheap',
+  'dipshit','pigshit','apeshit','batshit','chickenshit','crockofshit',
+  'ass','asshole','asswipe','asshat','assclown','assfuck','asslicker','assbag','assmonger',
+  'arse','arsehole','arselicker','arsewipe',
+  'bitch','bitching','bitchy','bitchass','sonofabitch','son of a bitch',
+  'cunt','cunting','cuntface','cunts',
+  'cock','cocksucker','cocksucking','cockhead','cockwomble','cockjockey','cockmonger','cocknose',
+  'dick','dickhead','dickweed','dickwad','dickface','dicky','dicks',
+  'pussy','pussies','twat','twatwaffle',
+  'piss','pisser','pissed','pissy','pissflap','pisshead',
+  'damn','damnit','goddamn','goddam',
+  'bastard','bastardy',
+  'wanker','wank','wanking','wankstain','wankpuffin',
+  'bollocks','bugger','sod','sodding','sods',
+  'turd','tit','tits','titties','titty','boob','boobs','nipple','nipples',
+  'boner','erection','penis','vagina','vulva','clitoris','labia',
+  'balls','ballsack','ballsackface','nutsack','scrotum',
+  'cum','cumming','cumshot','cumstain','jizz','jizzed','spunk','semen',
+  'dildo','vibrator','anal','anus','butt','butthole','buttplug',
+  'masturbate','masturbating','masturbation','orgasm','orgasms',
+  'porn','porno','pornography','pornstar','porntube',
+  'nude','nudes','naked','sexting','sexts','blowjob','handjob','rimjob',
+  'rape','raping','rapist','gang rape','date rape',
+  'molest','molestation','molester',
+  'slut','slutty','slutface','hoe','ho','thot','skank','whore','whorish',
+  'bimbo','tramp','jezebel','strumpet','prostitute','escort','hooker',
+  'incest','necrophilia','bestiality','zoophilia',
+  'pedophile','paedophile','pedophilia','paedophilia','pedo','paedo','nonce',
+  'pervert','perv','degenerate',
+  // ── English: slurs / hate ──
+  'nigger','nigga','nigg','nig','negro','negress','darkie','sambo','pickaninny',
+  'coon','jiggaboo','jigaboo','spook','tar baby','porch monkey','jungle bunny',
+  'kike','yid','hymie','hebe','sheeny','jewboy',
+  'spic','spick','wetback','greaser','beaner','refried',
+  'chink','chinky','gook','slant','zipperhead','nip','jap',
+  'raghead','towelhead','sandnigger','sand nigger','camel jockey','terrorist arab',
+  'cracker','redneck','white trash','trailer trash','hillbilly',
+  'faggot','fag','fagg','dyke','queer','tranny','shemale','he she',
+  'homo','homophobe','trannie','transsexual slur',
+  'retard','retarded','spastic','spaz','cripple','gimp','mong','mongoloid',
+  'schizo','psycho','lunatic','maniac',
+  // ── Extremist / Hateful figures / symbols ──
+  'hitler','adolf hitler','heil hitler','sieg heil','adolf','nazi','nazism','naziism',
+  'nsdap','waffen ss','ss officer','gestapo','fuhrer','führer','dritte reich',
+  'third reich','reich','auschwitz glorif','holocaustdenial','holocaust denial',
+  'kkk','ku klux klan','white power','white supremac','white nationalist','aryan nation',
+  'neo nazi','neonazi','88','1488','14 words','day of the rope',
+  'mussolini','benito mussolini','fascist','fascism',
+  'stalin','stalinism','mao zedong','pol pot','idi amin','mengele','goebbels',
+  'isis','isil','jihadi','jihadist','alqaeda','al qaeda','taliban',
+  'mass murder','ethnic cleansing','genocide','war crime',
+  // ── Self-harm / violence ──
+  'kill yourself','kys','go die','commit suicide','rope yourself','neck yourself',
+  'slit your wrists','slit wrists',
+  // ── German ──
+  'scheiße','scheisse','scheiß','scheis','schei','fick','ficken','ficker','fickt','gefickt','verpiss',
+  'hurensohn','hurensöhne','hure','nutte','nuttig','wichser','wichse','wichs','wichsen','wichsers',
+  'arschloch','arsch','arsches','arschgeige','arschkopf','arschkriecher','arschgesicht',
+  'fotze','votze','möse','schwanz','schwanzlutscher','pisser','pissen','pisse',
+  'verdammt','gottverdammt','drecksau','dreckssau','dreckskerl','drecksack',
+  'blödmann','blöde','blödheit','schlampe','miststück','mistkerl','dummkopf','döspaddel',
+  'vollidiot','volltrottel','depp','trottel','idioten','dummie','dummkopf',
+  'spast','spasti','spacko','behinderter','behinderte','neger','negerin','judensau',
+  'schwuchtel','schwuler','tunte','kanake','kanaken','wichsvorlage','nazischwein',
+  'heil','führer','reichsführer','rotfront','volksverhetzung',
+  // ── French ──
+  'merde','putain','connard','connasse','salope','salop','pute','enculé','encule','encule',
+  'foutre','foutu','foutaise','fils de pute','batard','bâtard','salopard','salopards',
+  'branleur','branleuse','nique','niquer','va te faire foutre','va te faire enc',
+  'pédé','tapette','gouine','pd','chier','chieur','chiasse','chiasses',
+  'bite','couille','couilles','cul','chatte','nichons','fesse','fesses',
+  'bordel','saloperie','cochon','porc','ordure','ordures','salaud','boche','bicot','raton',
+  'têtard','connerie','crétin','imbécile','idiot','abruti','abrutie',
+  // ── Spanish ──
+  'puta','puto','coño','joder','hostia','hostias','mierda','gilipolla','gilipollas',
+  'cabrón','cabron','hijueputa','hijo de puta','hijodeputa','pendejo','maricón','maricon',
+  'chingada','chingar','chingón','verga','huevos','culero','cholo','guey','wey',
+  'mamada','mamadas','cagar','culo','follador','follar','follarse',
+  'concha','conchudo','zorra','zorras','vete a la mierda','capullo','capullos','mamón',
+  'imbécil','idiota','estúpido','estupido','maldito','maldita','bastardo','bastarda',
+  'mariquita','tortillera','bollera',
+  // ── Italian ──
+  'cazzo','minchia','stronzo','stronza','vaffanculo','porco dio','porco','merda',
+  'fanculo','figa','fica','coglione','coglioni','testa di cazzo','bastardo','bastarda',
+  'figlio di puttana','troia','troie','zoccola','zoccole','pezzo di merda',
+  'cazzata','incazzato','rompicoglioni','cornuto','cornuta','baldracca',
+  'cretino','idiota','imbecille','deficiente','ritardato',
+  // ── Portuguese ──
+  'porra','caralho','fodase','foda','foder','filho da puta','filho de puta',
+  'viado','viadinho','buceta','cu','merda','puta','putaria','vagabundo','vagabunda',
+  'safado','safada','desgraçado','desgraça','idiota','burro','corno','cornudo',
+  'arrombado','babaca','boceta','broxa','punheta','xerecada',
+  // ── Dutch ──
+  'kut','godverdomme','godverdomd','lul','klootzak','hoer','slet','neuken','neuk',
+  'tering','kanker','kankerlijer','kankerwijf','tyfus','pleur','donder','sodemieter',
+  'vuile','stomme','vieze','schijt','stront','poep','eikel','pik','ballen','mongool',
+  'flikker','nicht','mietje','pijpen','beffen','rukken','ruk',
+  // ── Russian (romanized) ──
+  'blyad','blyadt','suka','hui','huinya','pizda','pizdet','pizdec','pizdato',
+  'ebat','ebal','eby','naebat','proebat','uebat',
+  'svoloch','mudak','dolboyob','dolboeb','zalupa','pederast','bliad',
+  'nahuy','khuy','govno','xyй','пизда','залупа','уебок','мудак',
+  'debil','urod','shluha','prostitutka',
+  // ── Swedish ──
+  'fan','jävlar','jävla','jäkla','helvete','hora','fitta','kuk','bög','djävul',
+  'satan','skit','förbannad','jävel','röv','knulla','runka','skitstövel',
+  'fårskalle','cp','mongo','packet','blattefan','svarting',
+  // ── Norwegian / Danish ──
+  'faen','helvete','hora','fitte','kuk','rass','jævla','dritt','drittprat',
+  'pikk','ræv','bæsj','jævel','hestkuk','kuksuger','kukksuger','fittefis',
+  'satans','helvede','skide','lort','røvhul','pik','fissen','luder',
+  // ── Polish ──
+  'kurwa','chuj','pizda','jebac','jebać','suka','szmata','skurwysyn','kurwy',
+  'debil','debile','idiota','sraka','srać','dupa','dupek','pedał','pedal',
+  'ciota','cioty','huj','pierdolić','pierdol','zjebany','odjebany','zajebany',
+  'kutas','spierdalaj','pojebaniec','zakichany','spierdalaj','robaki',
+  // ── Turkish ──
+  'siktir','orospu','orospu cocugu','piç','pic','bok','yarrak','amk','amina koyim',
+  'amına koyayım','götveren','ibne','kahpe','oç','puşt','sik','sikik','sikme','sikmek',
+  'göt','kaltak','pezevenk','salak','aptal','gerizekalı','bok yemek',
+  // ── Arabic (romanized) ──
+  'kuss','kos','kossomak','ibn el sharmouta','sharmouta','ayre','ayri','khawal',
+  'zibbi','hayawan','kelb','kes emak','neek','yel an abu','yel3an','wiskh',
+  'ibn el metnaka','ars','sharmout','ahbal','zalama','hmar','sharmuta',
+  // ── Japanese (romanized) ──
+  'kichiku','chikusho','kuso','chinpira','manko','chinko','kisama','shine',
+  'baita','yariman','hentai','omanko','unko','ketsu','baka','aho','shine',
+  'ero','chikan','lolicon','shotacon',
+  // ── Chinese (romanized) ──
+  'tamade','ta ma de','cao ni ma','cao','wocao','shabi','sha bi','bichi',
+  'hundan','gun dan','diao','diao si','ni ma de','caonima','tmd','nmsl','qnmd',
+  'biaozi','ji ba','jiba','ju ba','lese','sha bi','wang ba dan',
+  // ── Hindi (romanized) ──
+  'madarchod','bhosdike','bhenchod','chutiya','gandu','harami','randi','sala',
+  'sali','loda','lund','gaand','lavda','bsdk','maa ki aankh','teri maa',
+  // ── Greek (romanized) ──
+  'malakas','malaka','gamoto','gamiso','skata','skatos','pousti','poustis',
+  'arxidi','arxidia','mpitsa','poutana','poutanaki',
+  // ── Finnish ──
+  'perkele','vittu','saatana','jumalauta','haista','hitto','paska','helvetti',
+  'kyrpä','pillu','homo','huora','mulkku','runkkari',
+  // ── Hungarian ──
+  'kurva','picsába','bazdmeg','fasz','seggfej','gecis','baszd meg','picsa',
+  // ── Czech / Slovak ──
+  'kurva','pica','pička','kokot','hovno','piča','jebat','jebal','hajzel',
+  'zasraný','debil','idiot','vole','kretén','blbec','blbá',
+  // ── Romanian ──
+  'pula','pizda','muie','curva','cacat','rahat','futut','futai','nenorocit',
+  'dobitoc','idiot','cretin','tâmpit','tampit',
+
+  // ── More English slurs / insults ──
+  'gayboy','gayfag','gaybash','fagboy','fagbag','fagface','faggotry',
+  'lesbo','lezzie','lezbo','dykey','queerboy','queerbait','queerfag',
+  'trannyfag','trannybash','sissy','pansy','nancy','nancyboy','poofter','poof',
+  'sodomite','sodomize','sodomized',
+  'jewbag','jewface','jewfuck','jewhater','jewpig',
+  'raghead','towelhead','bombhead','goatfucker','cameljockey','deserthater',
+  'chinaman','chingchong','ching chong','ching chang','sliteyes','yellowskin',
+  'blackmonkey','blackape','blackbastard','blackpiece','nword','n-word',
+  'whitesupremacist','whitepride','whitenigger','wigger','wigga','peckerwood',
+  'wop','dago','dago','ginzo','greasy','greaseball','guido','paisan',
+  'mick','paddy','fenian','taig','proddy','orangeman',
+  'kraut','hun','jerry','fritz','boche','squarehead',
+  'frog','frogeater','surrender monkey',
+  'limey','pommy','pom',
+  'polack','bohunk','hunky','galoot',
+  'cossack','ruskie','russki','commie','pinko','bolshevik',
+  'zipperhead','slope','squinteye','riceeater',
+  'brownie','beige','mudblood','halfbreed','halfcast','mulatto','octoroon',
+  'redskin','injun','squaw','wagon burner','prairie nigger',
+  'flip','gook','nip','jap','kamikaze slur',
+  'hajji','haji','sandmonkey','dune coon','goathumper',
+  'cripple','wheelchair bound insult','limp','gimpy','deafy','blindy',
+  'spacker','mong','mongol','downie','tard','tardation','window licker',
+  'psycho','nutjob','nutcase','loony','looney','bonkers insult','crazyface',
+  'fatass','fatso','fatbody','lardass','lardbutt','tubby','chunky insult',
+  'ugly bitch','fugly','butt ugly','pigface','dogface','horseface insult',
+  'smelly','stinky','filthy','scumbag','scumfuck','scumsucker',
+  'dirtbag','dirtyslut','dirtywhore','dirtybitch','dirtycunt',
+  'cum guzzler','cum dumpster','sperm bank','cock jockey','ass pirate',
+  'bumfuck','bumboy','bumbitch','rimmer','rimjobber','shiteater',
+  'shit eater','shit breath','shit face','shit stain','shit for brains',
+  'dickbreath','dickface','dickjockey','prick','prickface','prickwad',
+  'douchebag','douche','douchecanoe','douchenozzle','douchewhistle',
+  'knobhead','knobend','knobber','knob jockey','bellend','bell end',
+  'muppet','tosser','plonker','numpty','nonce','chav','pikey',
+  'shagger','shag','shagged','snog','slag','slapper','scrubber',
+  'minge','mingebag','growler','gash','beef curtains','axe wound',
+  'clunge','clungebag','hairy clam',
+  // ── More German ──
+  'pissnelke','pisskopf','pissant','sackgesicht','sackratte','wixer','wixxer',
+  'rammelbock','rammeln','rammelei','säufer','saufkopf','suffkopp',
+  'vollaffe','affengesicht','affentrottel','hirnfurz','hohlkopf','hirnlos',
+  'schmierlappen','schmieriges','schweinepriester','schweinerei','schweinhund',
+  'vollhorst','volltölpel','pappnase','pfeifengesicht','heulsusse','heulsuse',
+  'hosenscheisser','hosenscheißer','weichei','memme','feigling',
+  'verräter','lügner','heuchler','hundesohn','hundsfott',
+  'judenhasser','judenfeind','ausländerhasser','fremdenfeind',
+  'dreckstürke','dreckspole','drecksfranke','drecksrusse',
+  'türkenhasser','araberhasser','islamhasser','muslimhasser',
+  'neonazi','neonazis','nazideutschland','hitlerdeutschland','reichsbürger',
+  // ── More French ──
+  'enfoire','enfoiré','pauvre con','sale con','sale gosse','gros con',
+  'trou du cul','trou de cul','face de cul','face de fion','face de rat',
+  'baltringue','raclure','raclure de bidet','sous-merde','merdeux',
+  'fdp','ntm','va te faire enc','ta mère','nique ta mère','nique ta race',
+  'pute de service','pouffiasse','greluche','traînée','grognasse',
+  'pédale','pédalo','tarlouze','tantouze','tantouse','lopette','lope',
+  'feij','feuj','youpin','youtre','youpine','bamboula','bougnoul','bougnoule',
+  'bronzé insult','métèque','raton','ratonnade','crouille','crouillat',
+  // ── More Spanish ──
+  'culo de mierda','cara de mierda','hijo de mierda','pedazo de mierda',
+  'me cago en','me cago en dios','me cago en tu madre','me cago en tu puta madre',
+  'macho cabrio','cabronazo','putazo','zorrazo','prostitucion',
+  'mariconsete','mariconcete','putrefacto','putrefacta',
+  'sudaca','sudacas','morito','morisqueta','negrata','negrata',
+  'gitano insult','gitana insult','payoinsult',
+  // ── More Italian ──
+  'porco giuda','porco mondo','porco zio','porco miseria',
+  'figlio di buona donna ironic','mignotta','sgualdrina','puttanella',
+  'pompinara','pompino','segaiolo','segaiola','cornuto bastardo',
+  'rincoglionito','scoglionato','stronzate','stronzata',
+  'negro insult','terrone','polentone insult','coatto','coatti',
+  // ── More Portuguese ──
+  'vai tomar no cu','vai se foder','vai se fuder','corna','cornudo',
+  'porra merda','merda total','puta merda','merdinha',
+  'cuzão','cuzona','viadora','pederasta','sodomita',
+  'macaco insult','preto insult','pardo insult',
+  // ── Afrikaans ──
+  'bliksem','doos','naai','naaier','poes','poesgat','teef','drol',
+  'hoer','moerskont','jou ma','jou moer','jou fok','fokof',
+  'kaffir','kaffer','boesman','hotnot','koeliegat',
+  // ── Malay / Indonesian ──
+  'anjing','bangsat','babi','kontol','memek','ngentot','pepek',
+  'sial','celaka','bajingan','keparat','sundal','pelacur',
+  // ── Tagalog / Filipino ──
+  'putangina','putang ina','puta ka','tanga','gago','gaga','bobo','boba',
+  'tang ina','kupal','ulol','inutil','pakingshet','leche',
+  // ── Korean (romanized) ──
+  'ssibal','shibal','gaesaekki','jiral','byeong sin','omi','boji','jaji',
+  'nyeon','nyeonja','chang nyeo','henchman','ppalgan',
+  // ── Vietnamese (romanized) ──
+  'dit me','dit con','du ma','du may','buoi','lon','cho','chim','cu',
+  // ── More extremism / terror / hate figures ──
+  'breivik','anders breivik','charles manson','ted bundy','jeffrey dahmer',
+  'john wayne gacy','richard ramirez','btk killer','zodiac killer insult',
+  'terrorist bomb','ied','pipe bomb','nail bomb','car bomb','suicide vest',
+  'school shooter','mass killer','child killer','serial killer admire',
+  'jihad','jihadist','martyrdom bomb','infidel killer',
+  'stormfront','daily stormer','white aryan','aryan brotherhood',
+  'proud boys','oath keeper extremist','boogaloo','groyper',
+  'pepe hate','frog nazi','reeeee slur',
+  // ── Self-harm / encouragement ──
+  'drink bleach','eat glass','go hang yourself','tie a noose','jump off',
+  'self harm','selfharm','cut yourself','burn yourself','hurt yourself',
+  'nobody loves you','you should die','die already','world better without you',
+  // ── Sexual violence / grooming ──
+  'loli','lolita insult','shotacon','toddlercon','babyfuck','infantophile',
+  'groomer','groom child','touch kids','fondle children',
+  'cp','childporn','child porn','child sexual','csam',
+  // ── Drug glorification combined with hate ──
+  'crackhead slur','junkie','junkface','methhead',
+    // ── Leet speak / obfuscated ──
+  'f4ck','f@ck','f**k','fu*k','f_ck','fvck','phuck','phucker','fuk','fuk',
+  'sh1t','$hit','sh!t','shyt','s_hit','sheit',
+  '@ss','a$$','a55','@$$',
+  'b1tch','b!tch','b*tch','bytch','biatch','beeyatch',
+  'c0ck','c*ck','cok','cawk',
+  'd1ck','d!ck','dik','diick',
+  'n1gger','n1gga','n!gger','nigg3r','n-word',
+  'k1ke','sp1c','ch1nk',
+  'a$$hole','@$$hole',
+  'cu*t','c*nt',
+  'tw@t','tw4t',
+  'p*ssy','pu$$y',
+  'w4nker','w@nker',
+  // ── Additional hate / extremism ──
+  'genocide','ethnic cleansing','mass shooting','school shooting','bomb making',
+  'terror attack','suicide bomb','child porn','cp porn','loli porn','shota porn',
+  'snuff','torture porn','gore','behead','beheading',
+  'antisemit','antisemitism','islamophob','homophob','transphob',
+  'aryanism','white supremacy','black supremacy','racial purity','race war',
+  'replacement theory','great replacement',
+  'dylann roof','brenton tarrant','adam lanza','james holmes','elliot rodger',
+  'osama','osama bin laden','bin laden','abu bakr',
+  'holocaust denier','flat earther insult',
+];
+
+// Smarter detection: normalize leet speak before checking
+function normalizeLeet(s){
+  return s.toLowerCase()
+    .replace(/0/g,'o').replace(/1/g,'i').replace(/3/g,'e')
+    .replace(/4/g,'a').replace(/5/g,'s').replace(/7/g,'t')
+    .replace(/8/g,'b').replace(/\$/g,'s').replace(/@/g,'a')
+    .replace(/!/g,'i').replace(/\*/g,'').replace(/_/g,'')
+    .replace(/\+/g,'t').replace(/\s+/g,'');
+}
+
+function isProfane(name){
+  const orig  = name.toLowerCase();
+  const clean = orig.replace(/\s+/g,'');
+  const leet  = normalizeLeet(name);
+
+  for(const w of PROFANITY){
+    const wClean = w.replace(/[\s\-]/g,'');
+    if(clean.includes(wClean)) return true;
+    if(orig.includes(w)) return true;
+    if(leet.includes(normalizeLeet(w))) return true;
+  }
+  return false;
+}
+
+let sbAvailable = true;
+
+async function sbFetch(path, opts={}){
+  if(!sbAvailable) return null;
+  try {
+    const res = await fetch(SB_URL + '/rest/v1/' + path, {
+      headers: { apikey: SB_KEY, Authorization: 'Bearer ' + SB_KEY,
+                 'Content-Type': 'application/json', Prefer: opts.prefer || '' },
+      ...opts
+    });
+    if(!res.ok) return null;
+    const txt = await res.text();
+    return txt ? JSON.parse(txt) : [];
+  } catch(e){
+    if(e instanceof TypeError && location.protocol === 'file:'){
+      sbAvailable = false;
+      // Show one-time notice
+      const notice = document.createElement('div');
+      notice.style.cssText='position:fixed;bottom:12px;left:50%;transform:translateX(-50%);background:#333;color:#fff;font-family:sans-serif;font-size:.78rem;padding:.5rem 1rem;border-radius:6px;z-index:9999;max-width:90%;text-align:center;';
+      notice.textContent = '⚠️ Leaderboard requires the game to be hosted online (not opened as a local file).';
+      document.body.appendChild(notice);
+      setTimeout(()=>notice.remove(), 7000);
+    }
+    return null;
+  }
+}
+
+let playerName = localStorage.getItem('tts_name') || null;
+
+// ── NAME MODAL ──────────────────────────────────────────────────────
+let nameCheckTimer = null;
+let nameOkReady = false;
+let isRenaming = false;
+
+function openNameModal(){
+  isRenaming = false;
+  document.getElementById('name-input').value = '';
+  document.getElementById('name-error').textContent = '';
+  document.getElementById('name-ok').classList.remove('ready');
+  document.getElementById('name-cancel').style.display = 'none';
+  nameOkReady = false;
+  document.getElementById('name-overlay').classList.add('visible');
+  document.getElementById('name-input').focus();
+}
+
+function openRename(){
+  playSound('click');
+  isRenaming = true;
+  document.getElementById('name-input').value = '';
+  document.getElementById('name-error').textContent = '';
+  document.getElementById('name-ok').classList.remove('ready');
+  document.getElementById('name-cancel').style.display = '';
+  nameOkReady = false;
+  document.getElementById('name-overlay').classList.add('visible');
+  document.getElementById('name-input').focus();
+}
+
+function closeNameModal(){
+  playSound('click');
+  document.getElementById('name-overlay').classList.remove('visible');
+}
+
+function onNameInput(){
+  const val = document.getElementById('name-input').value.trim();
+  const err = document.getElementById('name-error');
+  const ok  = document.getElementById('name-ok');
+  err.textContent = '';
+  ok.classList.remove('ready');
+  nameOkReady = false;
+  if(!val) return;
+  // Check if same as current name (rename mode only)
+  if(isRenaming && playerName && val === playerName){
+    err.textContent = `You are already called '${playerName}'`;
+    return;
+  }
+  if(nameCheckTimer) clearTimeout(nameCheckTimer);
+  nameCheckTimer = setTimeout(async ()=>{
+    if(isProfane(val)){
+      err.textContent = 'We do not support such names';
+      return;
+    }
+    const rows = await sbFetch('leaderboard?name=eq.' + encodeURIComponent(val) + '&select=name');
+    if(rows && rows.length > 0){
+      err.textContent = 'Name already exists';
+      return;
+    }
+    err.textContent = '';
+    ok.classList.add('ready');
+    nameOkReady = true;
+  }, 400);
+}
+
+async function submitName(){
+  if(!nameOkReady) return;
+  const val = document.getElementById('name-input').value.trim();
+  if(!val) return;
+
+  if(isRenaming && playerName){
+    // Rename: update existing row with new name
+    await sbFetch('leaderboard?name=eq.' + encodeURIComponent(playerName), {
+      method: 'PATCH',
+      prefer: 'return=minimal',
+      body: JSON.stringify({ name: val, updated_at: new Date().toISOString() })
+    });
+    playerName = val;
+    localStorage.setItem('tts_name', val);
+    document.getElementById('name-overlay').classList.remove('visible');
+    document.getElementById('name-cancel').style.display = 'none';
+    refreshLeaderboard();
+  } else {
+    // New registration: insert with score 0
+    await sbFetch('leaderboard', {
+      method: 'POST',
+      prefer: 'return=minimal',
+      body: JSON.stringify({ name: val, score: 0 })
+    });
+    playerName = val;
+    localStorage.setItem('tts_name', val);
+    document.getElementById('name-overlay').classList.remove('visible');
+    refreshLeaderboard();
+  }
+}
+
+// ── LEADERBOARD ─────────────────────────────────────────────────────
+async function refreshLeaderboard(){
+  const rows = await sbFetch('leaderboard?select=name,score&order=score.desc&limit=100');
+  if(!rows) return;
+  // Top 5 on homescreen
+  const top5 = rows.slice(0,5);
+  const tbl = document.getElementById('lb-home-table');
+  tbl.innerHTML = top5.map((r,i)=>{
+    const isMe = r.name === playerName;
+    return `<tr class="${isMe?'me':''}"><td>${i+1}</td><td>${escHtml(r.name)}</td><td>${r.score}</td></tr>`;
+  }).join('');
+  document.getElementById('lb-expand').style.display = rows.length > 5 ? '' : 'none';
+
+  // Full table
+  const body = document.getElementById('lb-full-body');
+  body.innerHTML = rows.map((r,i)=>{
+    const isMe = r.name === playerName;
+    return `<tr class="${isMe?'me':''}"><td>${i+1}</td><td>${escHtml(r.name)}</td><td>${r.score}</td></tr>`;
+  }).join('');
+}
+
+function escHtml(s){ return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+function lbRefreshClick(btnId){
+  const btn = document.getElementById(btnId);
+  if(!btn) return;
+  btn.classList.remove('spinning');
+  void btn.offsetWidth; // reflow to restart animation
+  btn.classList.add('spinning');
+  btn.addEventListener('animationend', ()=>btn.classList.remove('spinning'), {once:true});
+  refreshLeaderboard();
+}
+
+// Auto-refresh leaderboard every 30 seconds when on homescreen
+let lbAutoRefreshId = null;
+function startLbAutoRefresh(){
+  if(lbAutoRefreshId) clearInterval(lbAutoRefreshId);
+  lbAutoRefreshId = setInterval(()=>{
+    if(document.getElementById('homescreen').style.display !== 'none'){
+      refreshLeaderboard();
+    }
+  }, 30000);
+}
+startLbAutoRefresh();
+
+function openLeaderboard(){
+  document.getElementById('lb-overlay').classList.add('visible');
+  refreshLeaderboard();
+}
+function closeLeaderboard(){
+  document.getElementById('lb-overlay').classList.remove('visible');
+}
+
+async function submitScore(){
+  if(!playerName || score === 0) return;
+  // Only update if new score > existing
+  const rows = await sbFetch('leaderboard?name=eq.' + encodeURIComponent(playerName) + '&select=score');
+  if(!rows) return;
+  const existing = rows[0]?.score || 0;
+  if(score > existing){
+    await sbFetch('leaderboard?name=eq.' + encodeURIComponent(playerName), {
+      method: 'PATCH', prefer: 'return=minimal',
+      body: JSON.stringify({ score, updated_at: new Date().toISOString() })
+    });
+    refreshLeaderboard();
+  }
+}
+
+// On load: show name modal if no name yet, else refresh leaderboard
+window.addEventListener('load', ()=>{
+  if(!playerName){
+    openNameModal();
+  } else {
+    refreshLeaderboard();
+  }
+});
+let masterVolume = 1.0;
+
+// ── DELETE ACCOUNT FLOW ───────────────────────────────────────────────
+let delCountdownTimer = null;
+let delShootAnimId = null;
+let delShootTimeoutStart = 0;
+
+function openDelConfirm(){
+  playSound('click');
+  document.getElementById('del-confirm-overlay').classList.add('visible');
+  let secs = 5;
+  const btn = document.getElementById('del-confirm-btn');
+  btn.classList.remove('ready');
+  btn.onclick = null;
+  btn.innerHTML = 'Delete (<span id="del-countdown">5</span>)';
+  if(delCountdownTimer) clearInterval(delCountdownTimer);
+  delCountdownTimer = setInterval(()=>{
+    secs--;
+    const cd = document.getElementById('del-countdown');
+    if(secs <= 0){
+      clearInterval(delCountdownTimer);
+      btn.textContent = 'Delete';
+      btn.classList.add('ready');
+      btn.onclick = startDelShoot;
+    } else if(cd){
+      cd.textContent = secs;
+    }
+  }, 1000);
+}
+
+function closeDelConfirm(){
+  playSound('click');
+  if(delCountdownTimer) clearInterval(delCountdownTimer);
+  document.getElementById('del-confirm-overlay').classList.remove('visible');
+  const btn = document.getElementById('del-confirm-btn');
+  btn.innerHTML = 'Delete (<span id="del-countdown">5</span>)';
+  btn.classList.remove('ready'); btn.onclick = null;
+}
+
+let delPhase = 0, delLastT = 0;
+let delTarget = null;
+let delStonePosX = 0, delStonePosY = 0;
+let delStoneTargetX = 0, delStoneTargetY = 0;
+let delStoneDragging = false, delStoneDragHistory = [];
+let delFlyingStones = [];
+let delShootTimeoutId = null;
+
+let delBaseStoneR = 0;
+
+function startDelShoot(){
+  playSound('click');
+  closeDelConfirm();
+  document.getElementById('del-shoot-overlay').classList.add('visible');
+  const cv = document.getElementById('del-canvas');
+  cv.width = window.innerWidth; cv.height = window.innerHeight;
+  const W=cv.width, H=cv.height;
+  delBaseStoneR = Math.min(W,H) * 0.11; // same ratio as main game
+  const gr = H * GROUND_RATIO;
+
+  // Timer target — static, centered, 10s timer
+  const baseR = Math.min(W,H) * T_BASE_R_RATIO;
+  const tDepth = (T_DEPTH_MIN+T_DEPTH_MAX)/2;
+  const tScale = perspScale(tDepth);
+  const tR = baseR * tScale;
+  delTarget = {
+    x: W/2, y: gr * 0.35, r: tR, baseR,
+    born: performance.now(), duration: 10000,
+    hit: false, hitTime: 0, hitScale: 1,
+    timerArcFrac: 1
+  };
+
+  // Stone starts at home position
+  const stoneHomeX = W/2, stoneHomeY = gr - delBaseStoneR * 0.85;
+  delStonePosX=stoneHomeX; delStonePosY=stoneHomeY;
+  delStoneTargetX=stoneHomeX; delStoneTargetY=stoneHomeY;
+  delStoneDragging=false; delStoneDragHistory=[]; delFlyingStones=[];
+  delPhase=0; delLastT=performance.now(); delShootTimeoutStart=performance.now();
+  delHitTriggered=false;
+
+  cv.addEventListener('mousedown', delOnDown);
+  cv.addEventListener('mousemove', delOnMove);
+  cv.addEventListener('mouseup',   delOnUp);
+  cv.addEventListener('mouseleave',delOnUp);
+  cv.addEventListener('touchstart',delOnDown,{passive:false});
+  cv.addEventListener('touchmove', delOnMove,{passive:false});
+  cv.addEventListener('touchend',  delOnUp);
+  delShootTimeoutId = setTimeout(cancelDelShoot, 10000);
+  delLastT = performance.now();
+  requestAnimationFrame(delLoop);
+}
+
+let delHitTriggered = false;
+
+function cancelDelShoot(){
+  cleanupDelShoot();
+  document.getElementById('del-shoot-overlay').classList.remove('visible');
+}
+function cleanupDelShoot(){
+  // Always stop input listeners and timeout
+  if(delShootTimeoutId){ clearTimeout(delShootTimeoutId); delShootTimeoutId=null; }
+  const cv = document.getElementById('del-canvas');
+  const evs = [['mousedown',delOnDown],['mousemove',delOnMove],['mouseup',delOnUp],
+                ['mouseleave',delOnUp],['touchstart',delOnDown],['touchmove',delOnMove],['touchend',delOnUp]];
+  evs.forEach(([ev,fn])=>cv.removeEventListener(ev,fn));
+  // Only stop animation if NOT triggered by a hit (hit needs animation for pop-out)
+  if(!delHitTriggered){
+    if(delShootAnimId){ cancelAnimationFrame(delShootAnimId); delShootAnimId=null; }
+  }
+}
+
+function delGetPos(e){
+  const cv=document.getElementById('del-canvas'), r=cv.getBoundingClientRect();
+  const sx=cv.width/r.width, sy=cv.height/r.height;
+  const t=(e.touches&&e.touches[0])||(e.changedTouches&&e.changedTouches[0]);
+  if(t) return{x:(t.clientX-r.left)*sx,y:(t.clientY-r.top)*sy};
+  return{x:(e.clientX-r.left)*sx,y:(e.clientY-r.top)*sy};
+}
+
+let delDragStartPos = null;
+function delOnDown(e){
+  if(delHitTriggered) return;
+  const p=delGetPos(e);
+  const dx=p.x-delStonePosX, dy=p.y-delStonePosY;
+  if(Math.sqrt(dx*dx+dy*dy)<delBaseStoneR*1.7){
+    delStoneDragging=true; delDragStartPos={x:delStonePosX,y:delStonePosY};
+    delStoneTargetX=delStonePosX; delStoneTargetY=delStonePosY;
+    delStoneDragHistory=[{x:p.x,y:p.y,t:performance.now()}];
+    e.preventDefault();
+  }
+}
+function delOnMove(e){
+  if(!delStoneDragging) return; e.preventDefault();
+  const p=delGetPos(e);
+  // Apply DRAG_MAX_DIST clamp
+  const cv=document.getElementById('del-canvas'), W=cv.width, H=cv.height;
+  const homeX=W/2, homeY=H*GROUND_RATIO-delBaseStoneR*0.85;
+  const maxDist=Math.min(W,H)*DRAG_MAX_DIST;
+  let dx2=p.x-homeX, dy2=p.y-homeY;
+  const d=Math.sqrt(dx2*dx2+dy2*dy2);
+  if(d>maxDist){dx2=dx2/d*maxDist;dy2=dy2/d*maxDist;}
+  delStoneTargetX=homeX+dx2; delStoneTargetY=homeY+dy2;
+  delStoneDragHistory.push({x:delStoneTargetX,y:delStoneTargetY,t:performance.now()});
+  if(delStoneDragHistory.length>18) delStoneDragHistory.shift();
+}
+function delOnUp(e){
+  if(!delStoneDragging) return; delStoneDragging=false;
+  const now=performance.now(), rec=delStoneDragHistory.filter(p=>now-p.t<85);
+  let vx=0,vy=0;
+  if(rec.length>=2){const o=rec[0],n=rec[rec.length-1],dt2=n.t-o.t; if(dt2>1){vx=(n.x-o.x)/dt2;vy=(n.y-o.y)/dt2;}}
+  const speed=Math.sqrt(vx*vx+vy*vy);
+  const rx=delStonePosX, ry=delStonePosY;
+  delStoneDragHistory=[];
+  if(speed>=MIN_THROW_SPEED){
+    // Use same physics as main game
+    const spd2=speed;
+    const refRate=0.00028;
+    const gravScale=Math.max(0.8,Math.min(30.0,refRate/Math.max(spd2*VEL_SCALE*DEPTH_K,0.000008)));
+    const effGrav=GRAVITY*gravScale;
+    delFlyingStones.push({
+      x:rx, y:ry, vx:vx*VEL_SCALE, vy:vy*VEL_SCALE,
+      rot:Math.random()*Math.PI*2, rotSpd:(Math.random()-.5)*0.025,
+      depth:0, depthRate:spd2*VEL_SCALE*DEPTH_K,
+      scale:1, effGrav, state:'fly', variant:currentVariant
+    });
+    playSound('throw');
+    delStonePosX = -9999; delStonePosY = -9999; // hide until respawn
+    setTimeout(()=>{
+      const cv2=document.getElementById('del-canvas');
+      if(cv2 && !delHitTriggered){ delStonePosX=cv2.width/2; delStonePosY=cv2.height*GROUND_RATIO-delBaseStoneR*0.85; }
+    }, 520);
+  } else {
+    // Snap back
+    delReturnAnim={fromX:rx,fromY:ry,t0:performance.now()};
+  }
+}
+
+let delReturnAnim=null;
+
+function delDrawBackground(c, W, H){
+  const ground=H*GROUND_RATIO;
+  const dark=document.body.classList.contains('dark');
+  c.fillStyle=dark?'#181818':'#fff'; c.fillRect(0,0,W,ground);
+  const gr2=c.createLinearGradient(0,ground,0,H);
+  if(dark){gr2.addColorStop(0,'#2e2a26');gr2.addColorStop(0.1,'#252220');gr2.addColorStop(1,'#1e1c1a');}
+  else{gr2.addColorStop(0,'#ddd8d0');gr2.addColorStop(0.1,'#d0cbc2');gr2.addColorStop(1,'#bfb9b0');}
+  c.fillStyle=gr2; c.fillRect(0,ground,W,H-ground);
+  c.strokeStyle=dark?'rgba(255,255,255,.12)':'rgba(0,0,0,.15)'; c.lineWidth=2;
+  c.beginPath(); c.moveTo(0,ground); c.lineTo(W,ground); c.stroke();
+  c.strokeStyle=dark?'rgba(255,255,255,.03)':'rgba(0,0,0,.035)'; c.lineWidth=1;
+  const vx2=W/2;
+  for(let i=-9;i<=9;i++){c.beginPath();c.moveTo(vx2+i*W*.11,ground);c.lineTo(vx2+i*W*.72,H);c.stroke();}
+  for(let i=1;i<=5;i++){const ly=ground+(H-ground)*(i/5)*.85;c.beginPath();c.moveTo(0,ly);c.lineTo(W,ly);c.stroke();}
+}
+
+function delDrawTarget(c){
+  const t=delTarget; if(!t) return;
+  const r=t.r, popScale=t.hit?Math.max(0,1-(Date.now()-t.hitTime)/300):Math.min(1,(performance.now()-t.born)/320);
+  if(popScale<=0) return;
+  c.save(); c.translate(t.x,t.y); c.scale(popScale,popScale);
+  c.shadowColor='rgba(0,0,0,.22)'; c.shadowBlur=14; c.shadowOffsetX=2; c.shadowOffsetY=5;
+  [[r,'#cc2200'],[r*.78,'#fff'],[r*.56,'#cc2200'],[r*.34,'#fff'],[r*.15,'#cc2200']].forEach(([r2,col],i)=>{
+    if(i>0){c.shadowBlur=0;c.shadowOffsetX=0;c.shadowOffsetY=0;}
+    c.fillStyle=col; c.beginPath(); c.arc(0,0,r2,0,Math.PI*2); c.fill();
+  });
+  // Timer arc
+  if(!t.hit){
+    const arcR=r*1.18, frac=t.timerArcFrac;
+    const end=-Math.PI/2+frac*Math.PI*2;
+    c.beginPath(); c.arc(0,0,arcR,-Math.PI/2,end);
+    c.strokeStyle=frac>0.3?'#22cc44':'#ffaa00'; c.lineWidth=r*0.12; c.lineCap='round'; c.shadowBlur=0;
+    c.stroke();
+    c.beginPath(); c.arc(0,0,arcR,end,-Math.PI/2+Math.PI*2);
+    c.strokeStyle='rgba(0,0,0,.15)'; c.lineWidth=r*0.12; c.stroke();
+  }
+  c.restore();
+}
+
+function delLoop(ts){
+  delShootAnimId=requestAnimationFrame(delLoop);
+  const dt=Math.min(ts-delLastT,50); delLastT=ts;
+  const cv=document.getElementById('del-canvas'); if(!cv){cleanupDelShoot();return;}
+  const c=cv.getContext('2d'), W=cv.width, H=cv.height;
+  const ground=H*GROUND_RATIO;
+  c.clearRect(0,0,W,H);
+  delDrawBackground(c,W,H);
+
+  // Update timer
+  const elapsed2=performance.now()-delShootTimeoutStart;
+  delTarget.timerArcFrac=Math.max(0,1-elapsed2/10000);
+
+  // Draw timer bar on canvas
+  const timerFrac2=Math.max(0,1-elapsed2/10000);
+
+  // Snap back
+  if(delReturnAnim && !delStoneDragging){
+    const homeX=W/2, homeY=ground-delBaseStoneR*0.85;
+    const prog=Math.min(1,(performance.now()-delReturnAnim.t0)/280);
+    const ease=1-Math.pow(1-prog,3);
+    delStonePosX=delReturnAnim.fromX+(homeX-delReturnAnim.fromX)*ease;
+    delStonePosY=delReturnAnim.fromY+(homeY-delReturnAnim.fromY)*ease;
+    if(prog>=1){delStonePosX=homeX;delStonePosY=homeY;delReturnAnim=null;}
+  }
+  // Drag lag
+  if(delStoneDragging){
+    const f=1-Math.pow(DRAG_LAG,dt/16);
+    delStonePosX+=(delStoneTargetX-delStonePosX)*f;
+    delStonePosY+=(delStoneTargetY-delStonePosY)*f;
+  }
+
+  // Draw target (behind stones)
+  delDrawTarget(c);
+
+  // Update & draw flying stones
+  delFlyingStones.forEach(s=>{
+    if(s.state!=='fly') return;
+    s.vy+=s.effGrav*dt; s.x+=s.vx*dt; s.y+=s.vy*dt;
+    s.depth+=s.depthRate*dt; s.scale=perspScale(s.depth); s.rot+=s.rotSpd*dt;
+
+    // Hit check
+    if(!delTarget.hit && !delHitTriggered){
+      const dx3=s.x-delTarget.x, dy3=s.y-delTarget.y;
+      const speedT2=Math.min(1,s.depthRate/0.000055);
+      const stoneR2=delBaseStoneR*s.scale;
+      const hitZone2=stoneR2*0.6+HIT_PX+delTarget.r*Math.pow(1-speedT2,1.6);
+      if(Math.sqrt(dx3*dx3+dy3*dy3)<hitZone2){
+        delHitTriggered=true;
+        delTarget.hit=true; delTarget.hitTime=Date.now();
+        s.state='falling';
+        s.fallVy=Math.max(s.vy,0); s.scaleAtLand=Math.max(s.scale,0.08);
+        s.groundY=ground-delBaseStoneR*s.scaleAtLand*0.28;
+        playSound('hit');
+        cleanupDelShoot(); // stop input + timeout, keep animation running
+        setTimeout(doDeleteAccount, 500); // let target pop-out animate first
+      }
+    }
+
+    // Ground hit for flying stones
+    const flyGY=ground-delBaseStoneR*s.scale*0.28;
+    if(s.state==='fly' && s.y>=flyGY){
+      s.state='bounce'; s.fallVy=Math.max(s.vy,0); s.groundY=flyGY; s.scaleAtLand=s.scale; s.bounceCount=0;
+      playSound('bounce');
+    }
+    if(s.scale<0.018||s.x<-300||s.x>W+300) s.state='dead';
+
+    // Draw stone
+    const r3=delBaseStoneR*s.scale; if(r3<1) return;
+    // Shadow
+    const sh3=shadowFor(r3,s.y);
+    c.save(); c.globalAlpha=sh3.alpha; c.fillStyle='rgba(0,0,0,.85)';
+    c.beginPath(); c.ellipse(s.x,ground-2,sh3.w,sh3.h,0,0,Math.PI*2); c.fill(); c.restore();
+    c.save(); c.translate(s.x,s.y); c.rotate(s.rot); c.scale(s.scale,s.scale);
+    const tex3=getTex(delBaseStoneR,s.variant);
+    c.drawImage(tex3,-delBaseStoneR,-delBaseStoneR,delBaseStoneR*2,delBaseStoneR*2);
+    c.restore();
+  });
+
+  // Bounce physics
+  delFlyingStones.forEach(s=>{
+    if(s.state==='bounce'){
+      s.fallVy+=FALL_ACCEL*dt; s.y+=s.fallVy*dt; s.rot+=s.rotSpd*dt*1.4;
+      if(s.y>=s.groundY){
+        s.y=s.groundY;
+        if(s.fallVy>BOUNCE_MIN_VY && s.bounceCount<2){
+          s.fallVy=-s.fallVy*BOUNCE_RESTITUTION; s.bounceCount++;
+          playSound(s.bounceCount===1?'bounce':'bounce2');
+        } else { s.state='dying'; s.dieTimer=0; }
+      }
+      // Draw
+      const r4=delBaseStoneR*s.scaleAtLand; if(r4<1) return;
+      const sh4=shadowFor(r4,s.y);
+      c.save(); c.globalAlpha=sh4.alpha; c.fillStyle='rgba(0,0,0,.85)';
+      c.beginPath(); c.ellipse(s.x,ground-2,sh4.w,sh4.h,0,0,Math.PI*2); c.fill(); c.restore();
+      c.save(); c.translate(s.x,s.y); c.rotate(s.rot); c.scale(s.scaleAtLand,s.scaleAtLand);
+      c.drawImage(getTex(delBaseStoneR,s.variant),-delBaseStoneR,-delBaseStoneR,delBaseStoneR*2,delBaseStoneR*2);
+      c.restore();
+    } else if(s.state==='dying'){
+      s.dieTimer=(s.dieTimer||0)+(dt/2200); s.scale=Math.max(0,s.scaleAtLand*(1-s.dieTimer));
+      if(s.dieTimer>=1) s.state='dead';
+      const r5=delBaseStoneR*s.scale; if(r5<1){s.state='dead';return;}
+      c.save(); c.globalAlpha=Math.max(0,1-s.dieTimer*1.4);
+      c.translate(s.x,s.y); c.rotate(s.rot); c.scale(s.scale,s.scale);
+      c.drawImage(getTex(delBaseStoneR,s.variant),-delBaseStoneR,-delBaseStoneR,delBaseStoneR*2,delBaseStoneR*2);
+      c.restore();
+    }
+  });
+  delFlyingStones=delFlyingStones.filter(s=>s.state!=='dead');
+
+  // Draw held stone
+  if(!delHitTriggered){
+    const r6=delBaseStoneR, sh6=shadowFor(r6,delStonePosY);
+    c.save(); c.globalAlpha=sh6.alpha; c.fillStyle='rgba(0,0,0,.85)';
+    c.beginPath(); c.ellipse(delStonePosX,ground-2,sh6.w,sh6.h,0,0,Math.PI*2); c.fill(); c.restore();
+    c.save(); c.translate(delStonePosX,delStonePosY);
+    c.drawImage(getTex(r6,currentVariant),-r6,-r6,r6*2,r6*2);
+    c.restore();
+  }
+
+  // Label
+  const dark2=document.body.classList.contains('dark');
+  c.save(); c.font='bold '+Math.round(Math.min(W,H)*0.038)+'px sans-serif';
+  c.fillStyle=dark2?'rgba(255,255,255,.75)':'rgba(0,0,0,.65)';
+  c.textAlign='center'; c.textBaseline='middle';
+  c.fillText('Shoot the target if you really want to delete it', W/2, ground*0.12);
+  c.restore();
+}
+
+async function doDeleteAccount(){
+  // Close settings immediately
+  document.getElementById('settingsscreen').classList.remove('visible');
+
+  // Delete ALL local data first
+  const name = playerName;
+  playerName = null;
+  highScore = 0;
+  Object.keys(localStorage).filter(k => k.startsWith('tts_')).forEach(k => localStorage.removeItem(k));
+
+  // Delete from Supabase with correct REST syntax
+  if(name){
+    const encoded = encodeURIComponent(name);
+    // Try up to 3 times
+    for(let attempt = 0; attempt < 3; attempt++){
+      try {
+        const res = await fetch(`${SB_URL}/rest/v1/leaderboard?name=eq.${encoded}`, {
+          method: 'DELETE',
+          headers: {
+            apikey: SB_KEY,
+            Authorization: 'Bearer ' + SB_KEY,
+            'Content-Type': 'application/json',
+            Prefer: 'return=minimal'
+          }
+        });
+        // Check if deleted
+        const checkRes = await fetch(`${SB_URL}/rest/v1/leaderboard?name=eq.${encoded}&select=name`, {
+          headers: { apikey: SB_KEY, Authorization: 'Bearer ' + SB_KEY }
+        });
+        const checkData = checkRes.ok ? await checkRes.json() : [{}];
+        if(!checkData || checkData.length === 0) break;
+      } catch(e){ break; }
+    }
+  }
+
+  gameRunning = false; gamePaused = false;
+  sbAvailable = true; // re-enable so name check works for new registration
+
+  // Fade the shoot overlay to black
+  const fade = document.getElementById('del-fade-overlay');
+  if(delShootAnimId){ cancelAnimationFrame(delShootAnimId); delShootAnimId = null; }
+  fade.classList.add('fade-in');
+
+  setTimeout(()=>{
+    const gt = document.getElementById('del-goodbye-text');
+    const go = document.getElementById('del-goodbye-overlay');
+    go.style.zIndex = '800';
+    go.classList.add('visible');
+    gt.style.opacity = '0';
+    setTimeout(()=>{ gt.style.opacity = '1'; }, 80);
+
+    setTimeout(()=>{
+      gt.style.opacity = '0';
+      setTimeout(()=>{
+        go.classList.remove('visible');
+        go.style.zIndex = '';
+        document.getElementById('del-shoot-overlay').classList.remove('visible');
+        fade.classList.remove('fade-in');
+        document.getElementById('gamescreen').style.display = 'none';
+        document.getElementById('homescreen').style.display = 'flex';
+        updateHomeHighscore();
+        refreshLeaderboard();
+        openNameModal();
+      }, 700);
+    }, 2000);
+  }, 1300);
+}
+
+function openSettings(){
+  playSound('click');
+  document.getElementById('settingsscreen').classList.add('visible');
+  document.getElementById('vol-slider').value = masterVolume;
+  document.getElementById('dark-toggle').checked = document.body.classList.contains('dark');
+}
+function closeSettings(){
+  playSound('click');
+  document.getElementById('settingsscreen').classList.remove('visible');
+}
+function setVolume(v){ masterVolume = parseFloat(v); }
+function toggleDark(on){ playSound('click'); document.body.classList.toggle('dark', on); }
+
+function openConfirmReset(){
+  playSound('click');
+  document.getElementById('confirm-overlay').classList.add('visible');
+}
+function closeConfirmReset(){
+  playSound('click');
+  document.getElementById('confirm-overlay').classList.remove('visible');
+}
+function doResetHighScore(){
+  playSound('click');
+  highScore = 0;
+  localStorage.removeItem('tts_highscore');
+  document.getElementById('confirm-overlay').classList.remove('visible');
+  document.getElementById('settingsscreen').classList.remove('visible');
+  // Go to homescreen if not already there
+  document.getElementById('gamescreen').style.display = 'none';
+  document.getElementById('homescreen').style.display = 'flex';
+  gameRunning = false; gamePaused = false;
+  updateHomeHighscore();
+}
+
+// ── INFORMATION SCREEN ───────────────────────────────────────────────
+let infoAnimId = null;
+let infoPhase = 0;
+let infoLastTime = 0;
+let timerInfoAnimId = null;
+let timerInfoStart = 0;
+const TIMER_INFO_CYCLE = 7000; // ms for full demo cycle
+
+function drawInfoBullseye(c, cx, cy, r, outer){
+  c.save();
+  c.shadowColor='rgba(0,0,0,.18)'; c.shadowBlur=8; c.shadowOffsetX=2; c.shadowOffsetY=3;
+  [[r,outer],[r*.78,'#fff'],[r*.56,outer],[r*.34,'#fff'],[r*.15,outer]].forEach(([rad,col],i)=>{
+    if(i>0){c.shadowBlur=0;c.shadowOffsetX=0;c.shadowOffsetY=0;}
+    c.fillStyle=col; c.beginPath(); c.arc(cx,cy,rad,0,Math.PI*2); c.fill();
+  });
+  c.restore();
+}
+
+function drawInfoStatic(canvasId, color){
+  const cv = document.getElementById(canvasId);
+  if(!cv) return;
+  const c = cv.getContext('2d');
+  c.clearRect(0,0,cv.width,cv.height);
+  drawInfoBullseye(c, cv.width/2, cv.height/2, 30, color);
+}
+
+function animateInfoMoving(ts){
+  infoAnimId = requestAnimationFrame(animateInfoMoving);
+  const dt = ts - infoLastTime; infoLastTime = ts;
+  infoPhase += 0.00022 * dt;
+
+  const cv = document.getElementById('ic-moving');
+  if(!cv){ stopInfoAnim(); return; }
+  const c = cv.getContext('2d');
+  const w = cv.width, h = cv.height;
+  c.clearRect(0,0,w,h);
+
+  const r = 16;
+  const col = '#cc2200';
+  const halfW = w / 2;
+
+  // ── LEFT: horizontal mover ──
+  {
+    const cx0 = halfW / 2;            // centre of left half
+    const cy  = h / 2;
+    const amp = halfW * 0.34;
+    const p1x = cx0 - amp, p2x = cx0 + amp;
+    const cx  = cx0 + Math.sin(infoPhase) * amp;
+    c.strokeStyle='rgba(170,170,170,.7)'; c.lineWidth=1.6; c.lineCap='round';
+    c.beginPath(); c.moveTo(p1x,cy); c.lineTo(p2x,cy); c.stroke();
+    c.fillStyle='rgba(170,170,170,.7)';
+    c.beginPath(); c.arc(p1x,cy,3,0,Math.PI*2); c.fill();
+    c.beginPath(); c.arc(p2x,cy,3,0,Math.PI*2); c.fill();
+    drawInfoBullseye(c, cx, cy, r, col);
+  }
+
+  // ── RIGHT: vertical mover ──
+  {
+    const cx0 = halfW + halfW / 2;    // centre of right half
+    const cy0 = h / 2;
+    const amp = h * 0.28;
+    const p1y = cy0 - amp, p2y = cy0 + amp;
+    const cy  = cy0 + Math.sin(infoPhase + Math.PI * 0.5) * amp;
+    c.strokeStyle='rgba(170,170,170,.7)'; c.lineWidth=1.6; c.lineCap='round';
+    c.beginPath(); c.moveTo(cx0,p1y); c.lineTo(cx0,p2y); c.stroke();
+    c.fillStyle='rgba(170,170,170,.7)';
+    c.beginPath(); c.arc(cx0,p1y,3,0,Math.PI*2); c.fill();
+    c.beginPath(); c.arc(cx0,p2y,3,0,Math.PI*2); c.fill();
+    drawInfoBullseye(c, cx0, cy, r, col);
+  }
+}
+
+function animateTimerInfo(ts){
+  timerInfoAnimId = requestAnimationFrame(animateTimerInfo);
+  const cv = document.getElementById('ic-timer');
+  if(!cv){ cancelAnimationFrame(timerInfoAnimId); timerInfoAnimId=null; return; }
+  const c = cv.getContext('2d');
+  const w = cv.width, h = cv.height;
+  c.clearRect(0,0,w,h);
+
+  const now = performance.now();
+  const cycleT = ((now - timerInfoStart) % TIMER_INFO_CYCLE) / TIMER_INFO_CYCLE;
+  // Alternate color each cycle
+  const cycleCount = Math.floor((now - timerInfoStart) / TIMER_INFO_CYCLE);
+  const timerColor = cycleCount % 2 === 0 ? '#cc2200' : '#1565c0';
+  const cx = w/2, cy = h/2;
+  const r = 26;
+
+  // Phase 0.0–0.1: pop in
+  // Phase 0.1–0.8: timer draining
+  // Phase 0.8–0.9: flash + -5
+  // Phase 0.9–1.0: fade out
+
+  let scale = 1, alpha = 1;
+  if(cycleT < 0.10){ scale = cycleT/0.10; alpha = scale; }
+  else if(cycleT > 0.85){ alpha = Math.max(0, 1-(cycleT-0.85)/0.15); }
+
+  // Timer fraction: goes from 1 to 0 between 0.10 and 0.80
+  const timerFrac = cycleT < 0.10 ? 1 : cycleT < 0.80 ? 1-(cycleT-0.10)/0.70 : 0;
+
+  c.save();
+  c.globalAlpha = alpha;
+  c.translate(cx, cy); c.scale(scale, scale);
+
+  // Draw target rings
+  const rings = [[r,timerColor],[r*.78,'#fff'],[r*.56,timerColor],[r*.34,'#fff'],[r*.15,timerColor]];
+  c.shadowColor='rgba(0,0,0,.18)'; c.shadowBlur=8; c.shadowOffsetX=2; c.shadowOffsetY=3;
+  rings.forEach(([rad,col],i)=>{
+    if(i>0){c.shadowBlur=0;c.shadowOffsetX=0;c.shadowOffsetY=0;}
+    c.fillStyle=col; c.beginPath(); c.arc(0,0,rad,0,Math.PI*2); c.fill();
+  });
+
+  // Green timer arc
+  if(cycleT < 0.80){
+    const arcR = r*1.18;
+    const endAngle = -Math.PI/2 + timerFrac * Math.PI * 2;
+    // Track
+    c.beginPath(); c.arc(0,0,arcR,-Math.PI/2,endAngle);
+    c.strokeStyle = timerFrac > 0.3 ? '#22cc44' : '#ffaa00';
+    c.lineWidth = r*0.13; c.lineCap='round'; c.shadowBlur=0;
+    c.stroke();
+    c.beginPath(); c.arc(0,0,arcR,endAngle,-Math.PI/2 + Math.PI*2);
+    c.strokeStyle='rgba(0,0,0,.12)'; c.lineWidth=r*0.13; c.stroke();
+  }
+
+  c.restore();
+
+  // -5 popup when timer expires
+  if(cycleT >= 0.80 && cycleT < 0.98){
+    const popAge = (cycleT - 0.80) / 0.18;
+    const popAlpha = Math.max(0, 1 - popAge) * alpha;
+    const popY = cy - 10 - popAge * 30;
+    c.save();
+    c.globalAlpha = popAlpha;
+    c.font = 'bold 18px sans-serif';
+    c.fillStyle = '#cc2200';
+    c.textAlign = 'center'; c.textBaseline = 'middle';
+    c.fillText('-5', cx, popY);
+    if(timerColor === '#1565c0'){
+      // Draw mini stone next to -5
+      const tw = c.measureText('-5').width;
+      drawStoneOnCtx(c, cx + tw/2 + 8, popY, 7);
+    }
+    c.restore();
+  }
+}
+
+function stopInfoAnim(){
+  if(infoAnimId){ cancelAnimationFrame(infoAnimId); infoAnimId=null; }
+  if(timerInfoAnimId){ cancelAnimationFrame(timerInfoAnimId); timerInfoAnimId=null; }
+}
+
+function openInfo(){
+  playSound('click');
+  document.getElementById('infoscreen').classList.add('visible');
+  drawInfoStatic('ic-red',    '#cc2200');
+  drawInfoStatic('ic-blue',   '#1565c0');
+  drawInfoStatic('ic-yellow', '#e6a800');
+  drawInfoStatic('ic-green',  '#1a8c2a');
+  stopInfoAnim();
+  infoPhase = 0; infoLastTime = performance.now(); timerInfoStart = performance.now();
+  requestAnimationFrame(ts => {
+    infoLastTime=ts; timerInfoStart=ts;
+    infoAnimId=requestAnimationFrame(animateInfoMoving);
+    timerInfoAnimId=requestAnimationFrame(animateTimerInfo);
+  });
+}
+
+function closeInfo(){
+  playSound('click');
+  stopInfoAnim();
+  document.getElementById('infoscreen').classList.remove('visible');
+}
+
+// ── INFORMATION SCREEN ───────────────────────────────────────────────
+
+window.addEventListener('resize',()=>{
+  if(!gameRunning) return;
+  resize(); baseStoneR=Math.min(W,H)*.11;
+  if(!isDragging&&stonePos){const h=homePos();stonePos.x=h.x;stonePos.y=h.y;}
+});
+</script>
+</body>
+</html>
