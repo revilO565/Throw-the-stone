@@ -57,6 +57,26 @@
   }
   #pause-btn:hover { background:var(--bg2); }
 
+  /* ── DEBUG MODE ── */
+  #debug-badge {
+    display:none; position:absolute; top:14px; left:50%; transform:translateX(-50%);
+    font-family:sans-serif; font-size:.72rem; font-weight:800; letter-spacing:.06em;
+    color:#ff0; background:rgba(0,0,0,.7); border:1px solid #ff0;
+    border-radius:4px; padding:.18rem .55rem; pointer-events:none; z-index:50;
+  }
+  #debug-panel {
+    display:none; position:absolute; bottom:14px; left:50%; transform:translateX(-50%);
+    background:rgba(0,0,0,.82); border:1px solid #ff0; border-radius:8px;
+    padding:.6rem .8rem; z-index:50; flex-wrap:wrap; gap:.4rem;
+    max-width:96vw; justify-content:center;
+  }
+  #debug-panel button {
+    font-family:sans-serif; font-size:.75rem; font-weight:700; padding:.3rem .65rem;
+    border:1px solid #666; border-radius:4px; cursor:pointer; color:#fff;
+    background:rgba(255,255,255,.12); transition:background .1s;
+  }
+  #debug-panel button:hover { background:rgba(255,255,255,.25); }
+
   /* ── PAUSE OVERLAY ── */
   #pause-overlay {
     display:none;
@@ -97,7 +117,7 @@
   #infoscreen {
     display:none; position:absolute; inset:0; background:var(--bg); z-index:300;
     flex-direction:column; align-items:center;
-    overflow:hidden; padding:0 1.2rem;
+    overflow-y:auto; padding:0 1.2rem 1.5rem;
     box-sizing:border-box; transition:background .25s;
   }
   #infoscreen.visible { display:flex; }
@@ -111,7 +131,7 @@
   #info-back:hover { background:var(--bg2); }
   #info-title { font-size:1.5rem; font-weight:900; color:var(--fg); margin-bottom:.1rem; margin-top:1.1rem; text-align:center; flex-shrink:0; }
   #info-subtitle { font-size:.88rem; color:var(--fg3); margin-bottom:.6rem; text-align:center; flex-shrink:0; }
-  #info-entries { width:100%; max-width:520px; flex:1; min-height:0; display:flex; flex-direction:column; justify-content:space-evenly; }
+  #info-entries { width:100%; max-width:520px; flex-shrink:0; display:flex; flex-direction:column; }
   .info-entry {
     display:flex; align-items:center; justify-content:space-between; gap:1rem;
     border-bottom:1px solid var(--border); padding:.5rem 0;
@@ -465,6 +485,14 @@
       </div>
       <div class="info-canvas-wrap"><canvas id="ic-moving" width="220" height="80"></canvas></div>
     </div>
+
+    <div class="info-entry">
+      <div class="info-text">
+        <div class="info-entry-title">Black hole</div>
+        <div class="info-entry-desc">The black hole pulls the stone toward itself. Every time a stone is sucked in, you lose 3 points and the black hole becomes bigger and stronger.</div>
+      </div>
+      <div class="info-canvas-wrap"><canvas id="ic-bh" width="90" height="90"></canvas></div>
+    </div>
   </div>
 
   <p id="info-version">2.0.0</p>
@@ -475,6 +503,16 @@
   <button id="pause-btn" onclick="pauseGame()">Pause (Esc)</button>
   <div id="stone-counter"><span id="stone-count">20</span><canvas id="stone-icon" width="28" height="22"></canvas></div>
   <div id="new-highscore-banner">New high score!</div>
+  <div id="debug-badge">DEBUG MODE</div>
+  <div id="debug-panel">
+    <button onclick="dbgSpawn('red')">🔴 Red</button>
+    <button onclick="dbgSpawn('blue')">🔵 Blue</button>
+    <button onclick="dbgSpawn('green')">🟢 Green</button>
+    <button onclick="dbgSpawn('yellow')">🟡 Yellow</button>
+    <button onclick="dbgSpawn('timed')">⏱ Timer Red</button>
+    <button onclick="dbgSpawn('timedBlue')">⏱ Timer Blue</button>
+    <button onclick="dbgSpawn('blackhole')">⚫ Black Hole</button>
+  </div>
   <div id="pause-overlay">
     <div id="pause-box">
       <h2>Paused</h2>
@@ -610,6 +648,7 @@ let dragHistory=[], returnAnim=null, currentVariant=0;
 let stonesLeft = 30;
 let stoneCountdown = null;
 let yellowSpawned = false;
+let blackHole = null; // only one at a time
 
 // Draw a stone texture onto any 2d context at (cx,cy) with radius r
 function drawStoneOnCtx(c, cx, cy, r){
@@ -650,6 +689,7 @@ function updateHomeHighscore(){
 updateHomeHighscore();
 
 function checkHighScore(){
+  if(debugMode) return; // no highscores in debug mode
   if(score > highScore){
     const wasZero = highScore === 0;
     highScore = score;
@@ -993,6 +1033,29 @@ class FlyingStone {
       this.scale  = perspScale(this.depth);
       this.rot   += this.rotSpd*dt;
 
+      // Black hole gravity
+      const absorbed = applyBlackHoleGravity(this, dt);
+      if(absorbed){
+        this.state = 'absorbed';
+        this.absorbTimer = 0;
+        // Grow black hole smoothly
+        if(blackHole){
+          blackHole.stonesAbsorbed++;
+          blackHole.targetR = (blackHole.targetR || blackHole.r) * 1.12;
+        }
+        // -3 points
+        score = Math.max(0, score - 3);
+        document.getElementById('score').textContent = score;
+        scorePopups.push({
+          x: this.x, y: this.y - this.baseR * this.scale * 1.4,
+          text: '-3', stoneIcon: true,
+          size: Math.max(14, this.baseR * this.scale * 0.9),
+          born: Date.now(), color: '#cc2200'
+        });
+        playSound('bounce2');
+        return;
+      }
+
       // Hit check — pure screen-space: if stone center is within hitZone of target center, it's a hit.
       // No depth gating needed — visually if they overlap, it counts.
       for(let i=targets.length-1;i>=0;i--){
@@ -1028,7 +1091,15 @@ class FlyingStone {
               born: Date.now(), color: '#1565c0'
             });
           } else if(t.timedBlue){
-            // Stone hit timedBlue before timer — no reward, just remove
+            // Stone hit timedBlue before timer — give 1 stone
+            stonesLeft = Math.min(99, stonesLeft + 1);
+            updateStoneCounter();
+            scorePopups.push({
+              x: t.screenX, y: t.screenY - t.renderR * t.scale * 1.2,
+              text: '+1', stoneIcon: true,
+              size: Math.max(14, t.renderR * t.scale * 0.85),
+              born: Date.now(), color: '#1565c0'
+            });
           } else if(t.timed){
             // Stone hit red timed before timer — give 1 point
             score += 1;
@@ -1133,6 +1204,12 @@ class FlyingStone {
       this.scale  = Math.max(0, this.scaleAtLand*(1-this.dieTimer));
       this.alpha  = Math.max(0, 1-this.dieTimer*1.4);
       if(this.dieTimer>=1) this.state='dead';
+    } else if(this.state==='absorbed'){
+      // Shrink and fade into black hole over 400ms
+      this.absorbTimer += dt/400;
+      this.scale = Math.max(0, (1 - this.absorbTimer) * (this.baseR>0?perspScale(this.depth):1));
+      this.alpha = Math.max(0, 1 - this.absorbTimer * 1.5);
+      if(this.absorbTimer >= 1) this.state = 'dead';
     }
   }
 
@@ -1303,7 +1380,85 @@ function resetStone(){
   targetPos=null; isDragging=false; dragHistory=[]; returnAnim=null;
 }
 
-// ── MAIN LOOP ─────────────────────────────────────────────────────────
+// ── BLACK HOLE ────────────────────────────────────────────────────────
+const BH_GRAVITY  = 0.00200;
+const BH_ABSORB_R = 0.40;
+
+function trySpawnBlackHole(){
+  if(blackHole) return;
+  if(score < 50) return;
+  if(Math.random() >= 0.20) return;
+  const ground = gY();
+  const r = Math.min(W,H) * 0.095; // bigger
+  const margin = r * 2;
+  const x = margin + Math.random() * (W - margin*2);
+  const y = margin + Math.random() * (ground*0.6 - margin*2);
+  const duration = 10000 + Math.random() * 5000; // 10–15s
+  blackHole = { x, y, r, born: Date.now(), duration,
+                scale: 0, phase: 0, dying: false, dyingStart: 0,
+                stonesAbsorbed: 0 };
+}
+
+function updateBlackHole(dt){
+  if(!blackHole) return;
+  const bh = blackHole;
+  const age = Date.now() - bh.born;
+  // Pop in
+  if(!bh.dying) bh.scale = Math.min(1, age / 350);
+  // Start dying after duration
+  if(!bh.dying && age >= bh.duration){
+    bh.dying = true;
+    bh.dyingStart = Date.now();
+  }
+  // Fade out like a hit target (300ms shrink)
+  if(bh.dying){
+    const dyingAge = Date.now() - bh.dyingStart;
+    bh.scale = Math.max(0, 1 - dyingAge / 300);
+    if(bh.scale <= 0){ blackHole = null; return; }
+  }
+  bh.phase += dt * 0.0018;
+
+  // Smooth growth toward targetR
+  if(bh.targetR && bh.targetR > bh.r){
+    const f = 1 - Math.pow(0.985, dt);
+    bh.r += (bh.targetR - bh.r) * f;
+    if(Math.abs(bh.targetR - bh.r) < 0.5) bh.r = bh.targetR;
+  }
+}
+
+function drawBlackHole(){
+  if(!blackHole) return;
+  const bh = blackHole;
+  const r = bh.r * bh.scale;
+  if(r < 1) return;
+
+  ctx.save();
+  ctx.translate(bh.x, bh.y);
+  ctx.fillStyle = '#000';
+  ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI*2); ctx.fill();
+  ctx.restore();
+}
+
+function applyBlackHoleGravity(stone, dt){
+  if(!blackHole || stone.state !== 'flying') return false;
+  const bh = blackHole;
+  const dx = bh.x - stone.x;
+  const dy = bh.y - stone.y;
+  const dist = Math.sqrt(dx*dx+dy*dy);
+  if(dist < 2) return false;
+
+  // Absorb if stone reaches event horizon
+  const absorbDist = bh.r * bh.scale * BH_ABSORB_R + stone.baseR * stone.scale * 0.5;
+  if(dist < absorbDist){
+    return true; // absorbed
+  }
+
+  // Gravity: F = BH_GRAVITY / dist² (capped to avoid explosions)
+  const force = Math.min(BH_GRAVITY * (bh.r * bh.scale) / (dist * dist * 0.001 + 0.0001), 0.065);
+  stone.vx += (dx/dist) * force * dt;
+  stone.vy += (dy/dist) * force * dt;
+  return false;
+}
 let lastTime=0, spawnTimer=0, nextSpawnIn=0;
 function randomSpawnDelay(){ return 800 + Math.random()*3200; } // 0.8s – 4s
 function loop(ts){
@@ -1323,6 +1478,8 @@ function loop(ts){
     nextSpawnIn=randomSpawnDelay();
   } else if(targets.length<3 && spawnTimer>=nextSpawnIn){
     spawnTarget();
+    // Also try spawning black hole
+    trySpawnBlackHole();
     spawnTimer=0;
     nextSpawnIn=randomSpawnDelay();
   }
@@ -1330,6 +1487,7 @@ function loop(ts){
     t.scale=t.hit?Math.max(0,1-(Date.now()-t.hitTime)/300):Math.min(1,(Date.now()-t.born)/320);
   });
   updateTargets(dt);
+  updateBlackHole(dt);
 
   flyingStones.forEach(s=>s.update(dt));
   flyingStones=flyingStones.filter(s=>s.state!=='dead');
@@ -1339,31 +1497,23 @@ function loop(ts){
   flyingStones.forEach(s => {
     let d, sy;
     if(s.state === 'flying'){
-      // Use screen Y to determine z: stone lower on screen = in front of higher targets
-      // If stone is BELOW target on screen (y > target.screenY), stone is in front → smaller depth value
-      // We mix screen-Y into the sort key: lower screenY on stone = appears behind
       d = s.depth;
       sy = s.y;
     } else {
-      // After hit: always in front (depth = -1)
       d = -1; sy = 9999;
     }
     drawables.push({ depth: d, screenY: sy, type:'stone', draw: () => s.draw() });
   });
-  // Sort: higher depth = further back = drawn first
-  // For ties or cross-over: if stone.y > target.screenY → stone is in front (draw after)
   drawables.sort((a, b) => {
-    // Both are targets or both stones: sort by depth
     if(a.type === b.type) return b.depth - a.depth;
-    // One is a stone, one is a target: stone is in front if stone.y >= target.screenY
     const stone  = a.type === 'stone' ? a : b;
     const target = a.type === 'target' ? a : b;
     const stoneInFront = stone.screenY >= target.screenY;
-    // If stone is in front, it should be drawn after target → stone gets higher index
     if(a.type === 'stone') return stoneInFront ? 1 : -1;
     else                    return stoneInFront ? -1 : 1;
   });
   drawables.forEach(d => d.draw());
+  drawBlackHole(); // draw on top of targets/stones
   drawHeldStone();
   drawPopups();
   requestAnimationFrame(loop);
@@ -1506,7 +1656,7 @@ function startGame(){
   newHighScoreShown=false;
   document.getElementById('new-highscore-banner').classList.remove('visible');
   document.getElementById('score').textContent='0';
-  targets=[]; flyingStones=[]; spawnTimer=0; nextSpawnIn=0; scorePopups=[]; yellowSpawned=false;
+  targets=[]; flyingStones=[]; spawnTimer=0; nextSpawnIn=0; scorePopups=[]; yellowSpawned=false; blackHole=null;
   resetStone();
   canvas.removeEventListener('mousedown', onDown);
   canvas.removeEventListener('mousemove', onMove);
@@ -1567,12 +1717,13 @@ function resumeGame(){
 function goHome(){
   playSound('click');
   gamePaused = false; gameRunning = false;
+  submitScore(); // must be before disableDebugMode() so debug guard works
+  disableDebugMode();
   document.getElementById('pause-overlay').classList.remove('visible');
   document.getElementById('gamescreen').style.display='none';
   document.getElementById('homescreen').style.display='flex';
   updateHomeHighscore();
   refreshLeaderboard();
-  submitScore();
   canvas.removeEventListener('mousedown', onDown);
   canvas.removeEventListener('mousemove', onMove);
   canvas.removeEventListener('mouseup',   onUp);
@@ -1586,7 +1737,93 @@ document.addEventListener('keydown', e => {
   if(e.key === 'Escape'){
     if(gamePaused){ resumeGame(); } else { pauseGame(); }
   }
+  // Debug mode code entry
+  debugHandleKey(e.key);
 });
+
+// ── DEBUG MODE ────────────────────────────────────────────────────────
+let debugMode = false;
+let debugCodeBuffer = '';
+let debugCodeTimer = null;
+let debugPhase = 0; // 0=idle, 1=first code entered while paused, 2=waiting for second
+const DEBUG_CODE = '5615';
+
+function debugHandleKey(key){
+  if(!/^[0-9]$/.test(key)) return;
+  if(debugCodeTimer) clearTimeout(debugCodeTimer);
+  debugCodeBuffer += key;
+  debugCodeTimer = setTimeout(()=>{ debugCodeBuffer = ''; }, 5000);
+
+  if(debugCodeBuffer.endsWith(DEBUG_CODE)){
+    debugCodeBuffer = '';
+    if(debugCodeTimer) clearTimeout(debugCodeTimer);
+
+    if(debugPhase === 0 && gamePaused){
+      // First code: entered while paused — silent, no hint
+      debugPhase = 1;
+
+    } else if(debugPhase === 1 && !gamePaused && gameRunning){
+      // Second code: entered after resuming — activate debug mode
+      debugPhase = 0;
+      debugMode = true;
+      document.getElementById('debug-badge').style.display = 'block';
+      document.getElementById('debug-panel').style.display = 'flex';
+    }
+  }
+}
+
+function dbgSpawn(type){
+  if(!debugMode) return;
+  if(type === 'blackhole'){
+    blackHole = null; // remove existing
+    trySpawnBlackHole(); // won't spawn if score<50, so force it
+    if(!blackHole){
+      // Force spawn regardless of score
+      const ground = gY();
+      const r = Math.min(W,H) * 0.095;
+      const margin = r * 2;
+      const x = margin + Math.random() * (W - margin*2);
+      const y = margin + Math.random() * (ground*0.6 - margin*2);
+      blackHole = { x, y, r, born: Date.now(), duration: 12000,
+                    scale:0, phase:0, dying:false, dyingStart:0 };
+    }
+    return;
+  }
+  if(targets.length >= 3) targets.splice(0,1); // make room
+  const ground = gY();
+  const baseR = Math.min(W,H)*T_BASE_R_RATIO;
+  const depth = (T_DEPTH_MIN+T_DEPTH_MAX)/2;
+  const s = perspScale(depth);
+  const r = baseR*s;
+  const sx = W*0.3 + Math.random()*W*0.4;
+  const sy = ground*0.1 + Math.random()*ground*0.4;
+  const now = Date.now();
+  const timed     = type === 'timed';
+  const timedBlue = type === 'timedBlue';
+  targets.push({
+    screenX:sx, screenY:sy, anchorX:sx, anchorY:sy,
+    depth, baseR, renderR:r, scale:0, born:now, hit:false, hitTime:0,
+    moving:false, moveAmp:0, moveSpeed:0, movePhase:0, moveDir:'h',
+    green:      type==='green',
+    blue:       type==='blue',
+    yellow:     type==='yellow',
+    timed,
+    timedBlue,
+    lives:      type==='green' ? 2 : 1,
+    damaged:    false,
+    timerBorn:  (timed||timedBlue) ? now : null,
+    timerDuration: 5000
+  });
+}
+
+function disableDebugMode(){
+  debugMode = false;
+  debugPhase = 0;
+  debugCodeBuffer = '';
+  if(debugCodeTimer){ clearTimeout(debugCodeTimer); debugCodeTimer=null; }
+  document.getElementById('debug-badge').style.display = 'none';
+  document.getElementById('debug-panel').style.display = 'none';
+}
 window.addEventListener('blur', () => { if(gameRunning && !gamePaused) pauseGame(); });
 
 // ── SUPABASE / LEADERBOARD ───────────────────────────────────────────
@@ -2037,7 +2274,7 @@ async function refreshLeaderboard(){
   const rows = await sbFetch('leaderboard?select=name,score&order=score.desc&limit=100');
   if(!rows) return;
   // Top 5 on homescreen
-  const top5 = rows.slice(0,5);
+  const top5 = rows.slice(0,3);
   const tbl = document.getElementById('lb-home-table');
   tbl.innerHTML = top5.map((r,i)=>{
     const isMe = r.name === playerName;
@@ -2086,6 +2323,7 @@ function closeLeaderboard(){
 }
 
 async function submitScore(){
+  if(debugMode) return; // no score submission in debug mode
   if(!playerName || score === 0) return;
   // Only update if new score > existing
   const rows = await sbFetch('leaderboard?name=eq.' + encodeURIComponent(playerName) + '&select=score');
@@ -2703,9 +2941,24 @@ function animateTimerInfo(ts){
   }
 }
 
+let bhInfoAnimId = null;
+
+function animateInfoBH(ts){
+  bhInfoAnimId = requestAnimationFrame(animateInfoBH);
+  const cv = document.getElementById('ic-bh');
+  if(!cv){ cancelAnimationFrame(bhInfoAnimId); bhInfoAnimId=null; return; }
+  const c = cv.getContext('2d');
+  const w=cv.width, h=cv.height, cx=w/2, cy=h/2;
+  c.clearRect(0,0,w,h);
+  const r = w * 0.30;
+  c.fillStyle = '#000';
+  c.beginPath(); c.arc(cx, cy, r, 0, Math.PI*2); c.fill();
+}
+
 function stopInfoAnim(){
   if(infoAnimId){ cancelAnimationFrame(infoAnimId); infoAnimId=null; }
   if(timerInfoAnimId){ cancelAnimationFrame(timerInfoAnimId); timerInfoAnimId=null; }
+  if(bhInfoAnimId){ cancelAnimationFrame(bhInfoAnimId); bhInfoAnimId=null; }
 }
 
 function openInfo(){
@@ -2721,6 +2974,7 @@ function openInfo(){
     infoLastTime=ts; timerInfoStart=ts;
     infoAnimId=requestAnimationFrame(animateInfoMoving);
     timerInfoAnimId=requestAnimationFrame(animateTimerInfo);
+    requestAnimationFrame(animateInfoBH);
   });
 }
 
