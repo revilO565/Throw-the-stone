@@ -2344,6 +2344,7 @@ startLbAutoRefresh();
 function openLeaderboard(){
   try{ playSound('click'); }catch(e){}
   const ov = document.getElementById('lb-overlay');
+  if(!ov){ alert('lb-overlay not found!'); return; }
   ov.style.display = 'flex';
   refreshLeaderboard();
 }
