@@ -357,7 +357,7 @@
 <div id="homescreen">
   <h1 class="home-title">Throw<br>the Stone</h1>
   <button class="start-btn" onclick="startGame()">START</button>
-  <button class="info-btn" onclick="openLeaderboard()">Leaderboard</button>
+  <button class="info-btn" id="btn-leaderboard">Leaderboard</button>
   <button class="info-btn" onclick="openSettings()">Settings</button>
   <button class="info-btn" onclick="openInfo()">Information</button>
   <p id="home-highscore"></p>
@@ -3092,6 +3092,9 @@ window.addEventListener('resize',()=>{
   resize(); baseStoneR=Math.min(W,H)*.11;
   if(!isDragging&&stonePos){const h=homePos();stonePos.x=h.x;stonePos.y=h.y;}
 });
+
+// Wire up leaderboard button after DOM + script are fully loaded
+document.getElementById('btn-leaderboard').addEventListener('click', openLeaderboard);
 </script>
 </body>
 </html>
