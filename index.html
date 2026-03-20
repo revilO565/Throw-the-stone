@@ -319,7 +319,7 @@
 
   /* ── LEADERBOARD FULL OVERLAY ── */
   #lb-overlay {
-    display:none; position:fixed; inset:0; z-index:500;
+    display:none; position:fixed; inset:0; z-index:650;
     background:var(--overlay-bg); backdrop-filter:blur(6px);
     align-items:center; justify-content:center;
   }
@@ -2300,16 +2300,17 @@ async function submitName(){
 
 // ── LEADERBOARD ─────────────────────────────────────────────────────
 async function refreshLeaderboard(){
-  const rows = await sbFetch('leaderboard?select=name,score&order=score.desc&limit=100');
-  if(!rows) return;
-  // Full table
-  const body = document.getElementById('lb-full-body');
-  if(body){
-    body.innerHTML = rows.map((r,i)=>{
-      const isMe = r.name === playerName;
-      return `<tr class="${isMe?'me':''}"><td>${i+1}</td><td>${escHtml(r.name)}</td><td>${r.score}</td></tr>`;
-    }).join('');
-  }
+  try {
+    const rows = await sbFetch('leaderboard?select=name,score&order=score.desc&limit=100');
+    if(!rows) return;
+    const body = document.getElementById('lb-full-body');
+    if(body){
+      body.innerHTML = rows.map((r,i)=>{
+        const isMe = r.name === playerName;
+        return `<tr class="${isMe?'me':''}"><td>${i+1}</td><td>${escHtml(r.name)}</td><td>${r.score}</td></tr>`;
+      }).join('');
+    }
+  } catch(e){ console.warn('refreshLeaderboard error:', e); }
 }
 
 function escHtml(s){ return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
@@ -2337,7 +2338,7 @@ function startLbAutoRefresh(){
 startLbAutoRefresh();
 
 function openLeaderboard(){
-  playSound('click');
+  try{ playSound('click'); }catch(e){}
   document.getElementById('lb-overlay').classList.add('visible');
   refreshLeaderboard();
 }
