@@ -166,6 +166,35 @@
     border-radius:5px; padding:.3rem .75rem; cursor:pointer; transition:background .12s;
   }
   #settings-back:hover { background:var(--bg2); }
+  #settings-save {
+    position:absolute; top:12px; left:calc(14px + 4.5rem + 8px);
+    font-family:sans-serif; font-size:.85rem; font-weight:700;
+    color:#fff; background:#1a8c2a; border:1px solid #1a8c2a;
+    border-radius:5px; padding:.3rem .75rem; cursor:pointer;
+    opacity:.3; pointer-events:none; transition:opacity .15s;
+  }
+  #settings-save.dirty { opacity:1; pointer-events:auto; }
+
+  /* ── SETTINGS SAVE? DIALOG ── */
+  #settings-save-overlay {
+    display:none; position:fixed; inset:0; z-index:500;
+    background:rgba(0,0,0,.4); align-items:center; justify-content:center;
+  }
+  #settings-save-overlay.visible { display:flex; }
+  #settings-save-box {
+    background:var(--bg); border-radius:12px; padding:1.8rem 1.8rem 1.5rem;
+    box-shadow:0 8px 40px rgba(0,0,0,.3); width:90%; max-width:360px; text-align:center;
+  }
+  #settings-save-box h3 { font-size:1.2rem; font-weight:900; color:var(--fg); margin-bottom:1.3rem; }
+  .save-btns { display:flex; gap:.5rem; justify-content:center; flex-wrap:wrap; }
+  .save-btns button {
+    padding:.55rem .9rem; font-family:sans-serif; font-size:.85rem; font-weight:700;
+    border:none; border-radius:5px; cursor:pointer; transition:opacity .12s;
+  }
+  #sb-save    { background:var(--fg); color:var(--bg); }
+  #sb-nosave  { background:var(--bg2); color:var(--fg); }
+  #sb-back    { background:var(--bg2); color:var(--fg); }
+  .save-btns button:hover { opacity:.8; }
   #settings-title { font-size:1.5rem; font-weight:900; color:var(--fg); margin-top:1.1rem; margin-bottom:2rem; text-align:center; }
   .setting-row {
     width:100%; max-width:400px; display:flex; align-items:center;
@@ -286,18 +315,6 @@
     background:var(--bg2); color:var(--fg); border:none; border-radius:5px; cursor:pointer;
   }
 
-  /* ── LEADERBOARD ON HOMESCREEN ── */
-  #lb-home {
-    width:100%; max-width:320px; margin-top:2.8rem;
-    font-family:sans-serif; font-size:.88rem;
-  }
-  #lb-home table { width:100%; border-collapse:collapse; }
-  #lb-home td { padding:.28rem .4rem; color:var(--fg2); }
-  #lb-home td:first-child { font-weight:700; color:var(--fg3); text-align:right; padding-right:.5rem; width:1.4em; }
-  #lb-home td:nth-child(2) { font-weight:600; color:var(--fg); }
-  #lb-home td:last-child  { text-align:right; font-weight:700; color:var(--fg); }
-  #lb-home tr.me td { color:#c68a00 !important; }
-  #lb-expand { background:none; border:none; color:var(--fg3); font-size:.78rem;
     cursor:pointer; margin-top:.3rem; text-decoration:underline; }
 
   /* ── LEADERBOARD FULL OVERLAY ── */
@@ -340,16 +357,10 @@
 <div id="homescreen">
   <h1 class="home-title">Throw<br>the Stone</h1>
   <button class="start-btn" onclick="startGame()">START</button>
+  <button class="info-btn" onclick="openLeaderboard()">Leaderboard</button>
   <button class="info-btn" onclick="openSettings()">Settings</button>
   <button class="info-btn" onclick="openInfo()">Information</button>
   <p id="home-highscore"></p>
-  <div id="lb-home">
-    <table id="lb-home-table"></table>
-    <div style="text-align:center;display:flex;align-items:center;justify-content:center;gap:.6rem;">
-      <button class="lb-refresh-btn" id="lb-refresh-home" onclick="lbRefreshClick('lb-refresh-home')" title="Refresh">↻</button>
-      <button id="lb-expand" onclick="openLeaderboard()">See all →</button>
-    </div>
-  </div>
 </div>
 
 <!-- NAME MODAL -->
@@ -385,16 +396,17 @@
 
 <!-- SETTINGS SCREEN -->
 <div id="settingsscreen">
-  <button id="settings-back" onclick="closeSettings()">Back</button>
+  <button id="settings-back" onclick="settingsBack()">Back</button>
+  <button id="settings-save" onclick="saveSettings()">Save</button>
   <h1 id="settings-title">Settings</h1>
   <div class="setting-row">
     <span class="setting-label">Sound</span>
-    <input type="range" id="vol-slider" min="0" max="1" step="0.01" value="1" oninput="setVolume(this.value)">
+    <input type="range" id="vol-slider" min="0" max="1" step="0.01" value="1" oninput="setVolume(this.value); settingsChanged();">
   </div>
   <div class="setting-row">
     <span class="setting-label">Light / Dark</span>
     <label class="toggle-wrap">
-      <input type="checkbox" id="dark-toggle" onchange="toggleDark(this.checked)">
+      <input type="checkbox" id="dark-toggle" onchange="toggleDark(this.checked); settingsChanged();">
       <div class="toggle-track"></div>
     </label>
   </div>
@@ -405,6 +417,18 @@
   <div class="setting-row">
     <span class="setting-label">Delete account</span>
     <button class="info-btn" style="margin-top:0;padding:.45rem 1rem;font-size:.88rem;color:#cc2200;border-color:#cc2200;" onclick="openDelConfirm()">Delete</button>
+  </div>
+</div>
+
+<!-- SETTINGS SAVE? DIALOG -->
+<div id="settings-save-overlay">
+  <div id="settings-save-box">
+    <h3>Save?</h3>
+    <div class="save-btns">
+      <button id="sb-save"   onclick="sbSaveAndClose()">Save and close</button>
+      <button id="sb-nosave" onclick="sbNoSaveAndClose()">Don't save and close</button>
+      <button id="sb-back"   onclick="sbBackToSettings()">Back to settings</button>
+    </div>
   </div>
 </div>
 
@@ -495,7 +519,7 @@
     </div>
   </div>
 
-  <p id="info-version">2.1.1</p>
+  <p id="info-version">2.2.0</p>
 </div>
 <div id="gamescreen">
   <canvas id="gameCanvas"></canvas>
@@ -521,6 +545,9 @@
         <button id="btn-home" onclick="goHome()">Home</button>
         <button id="btn-restart" onclick="restartGame()">Restart</button>
         <button id="btn-continue" onclick="resumeGame()">Continue</button>
+      </div>
+      <div class="pause-btns" style="margin-top:.6rem;">
+        <button id="btn-pause-restart" onclick="restartGame()" style="background:var(--bg2);color:var(--fg);">Restart</button>
       </div>
     </div>
   </div>
@@ -1653,6 +1680,7 @@ function startGame(){
   document.getElementById('pause-box').querySelector('h2').textContent = 'Paused';
   document.getElementById('btn-continue').style.display = 'block';
   document.getElementById('btn-restart').style.display = 'none';
+  document.getElementById('btn-pause-restart').style.display = 'block';
   newHighScoreShown=false;
   document.getElementById('new-highscore-banner').classList.remove('visible');
   document.getElementById('score').textContent='0';
@@ -1693,6 +1721,7 @@ function showGameOver(){
   document.getElementById('pause-score').textContent = 'Score: ' + score;
   document.getElementById('btn-continue').style.display = 'none';
   document.getElementById('btn-restart').style.display = 'block';
+  document.getElementById('btn-pause-restart').style.display = 'none';
   document.getElementById('pause-overlay').classList.add('visible');
   updateHomeHighscore();
 }
@@ -2273,21 +2302,14 @@ async function submitName(){
 async function refreshLeaderboard(){
   const rows = await sbFetch('leaderboard?select=name,score&order=score.desc&limit=100');
   if(!rows) return;
-  // Top 5 on homescreen
-  const top5 = rows.slice(0,3);
-  const tbl = document.getElementById('lb-home-table');
-  tbl.innerHTML = top5.map((r,i)=>{
-    const isMe = r.name === playerName;
-    return `<tr class="${isMe?'me':''}"><td>${i+1}</td><td>${escHtml(r.name)}</td><td>${r.score}</td></tr>`;
-  }).join('');
-  document.getElementById('lb-expand').style.display = '';
-
   // Full table
   const body = document.getElementById('lb-full-body');
-  body.innerHTML = rows.map((r,i)=>{
-    const isMe = r.name === playerName;
-    return `<tr class="${isMe?'me':''}"><td>${i+1}</td><td>${escHtml(r.name)}</td><td>${r.score}</td></tr>`;
-  }).join('');
+  if(body){
+    body.innerHTML = rows.map((r,i)=>{
+      const isMe = r.name === playerName;
+      return `<tr class="${isMe?'me':''}"><td>${i+1}</td><td>${escHtml(r.name)}</td><td>${r.score}</td></tr>`;
+    }).join('');
+  }
 }
 
 function escHtml(s){ return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
@@ -2346,7 +2368,6 @@ window.addEventListener('load', ()=>{
     refreshLeaderboard();
   }
 });
-let masterVolume = 1.0;
 
 // ── DELETE ACCOUNT FLOW ───────────────────────────────────────────────
 let delCountdownTimer = null;
@@ -2760,18 +2781,96 @@ async function doDeleteAccount(){
   }, 1300);
 }
 
+// ── SETTINGS ─────────────────────────────────────────────────────────
+let masterVolume = parseFloat(localStorage.getItem('tts_vol') ?? '1.0');
+let settingsDirty = false;
+// Snapshot of values when settings was opened (to revert on "Don't save")
+let settingsSnapshot = {};
+
+function loadSettings(){
+  const vol  = parseFloat(localStorage.getItem('tts_vol')  ?? '1.0');
+  const dark = localStorage.getItem('tts_dark') === '1';
+  masterVolume = vol;
+  document.body.classList.toggle('dark', dark);
+}
+loadSettings(); // apply on page load
+
+function checkSettingsDirty(){
+  // Compare current live values against what's persisted in localStorage
+  const savedVol  = parseFloat(localStorage.getItem('tts_vol')  ?? '1.0');
+  const savedDark = localStorage.getItem('tts_dark') === '1';
+  const currentDark = document.body.classList.contains('dark');
+  const currentVol  = masterVolume;
+  const isDirty = Math.abs(currentVol - savedVol) > 0.001 || currentDark !== savedDark;
+  settingsDirty = isDirty;
+  document.getElementById('settings-save').classList.toggle('dirty', isDirty);
+}
+
+function settingsChanged(){
+  checkSettingsDirty();
+}
+
+function saveSettings(){
+  playSound('click');
+  localStorage.setItem('tts_vol',  masterVolume);
+  localStorage.setItem('tts_dark', document.body.classList.contains('dark') ? '1' : '0');
+  checkSettingsDirty(); // dirty=false since live now matches localStorage
+}
+
 function openSettings(){
   playSound('click');
   document.getElementById('settingsscreen').classList.add('visible');
   document.getElementById('vol-slider').value = masterVolume;
   document.getElementById('dark-toggle').checked = document.body.classList.contains('dark');
+  // Snapshot = current LIVE values (what user sees right now) — used for revert on "Don't save"
+  settingsSnapshot = {
+    vol:  masterVolume,
+    dark: document.body.classList.contains('dark')
+  };
+  checkSettingsDirty();
 }
+
 function closeSettings(){
   playSound('click');
   document.getElementById('settingsscreen').classList.remove('visible');
 }
+
+function settingsBack(){
+  checkSettingsDirty();
+  if(settingsDirty){
+    document.getElementById('settings-save-overlay').classList.add('visible');
+  } else {
+    closeSettings();
+  }
+}
+
+function sbSaveAndClose(){
+  playSound('click');
+  saveSettings();
+  document.getElementById('settings-save-overlay').classList.remove('visible');
+  closeSettings();
+}
+
+function sbNoSaveAndClose(){
+  playSound('click');
+  document.getElementById('settings-save-overlay').classList.remove('visible');
+  // Revert to snapshot
+  masterVolume = settingsSnapshot.vol;
+  document.body.classList.toggle('dark', settingsSnapshot.dark);
+  document.getElementById('vol-slider').value = masterVolume;
+  document.getElementById('dark-toggle').checked = settingsSnapshot.dark;
+  settingsDirty = false;
+  document.getElementById('settings-save').classList.remove('dirty');
+  closeSettings();
+}
+
+function sbBackToSettings(){
+  playSound('click');
+  document.getElementById('settings-save-overlay').classList.remove('visible');
+}
+
 function setVolume(v){ masterVolume = parseFloat(v); }
-function toggleDark(on){ playSound('click'); document.body.classList.toggle('dark', on); }
+function toggleDark(on){ document.body.classList.toggle('dark', on); }
 
 function openConfirmReset(){
   playSound('click');
