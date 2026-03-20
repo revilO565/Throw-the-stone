@@ -346,8 +346,8 @@
   <div id="lb-home">
     <table id="lb-home-table"></table>
     <div style="text-align:center;display:flex;align-items:center;justify-content:center;gap:.6rem;">
-      <button id="lb-expand" onclick="openLeaderboard()">See all →</button>
       <button class="lb-refresh-btn" id="lb-refresh-home" onclick="lbRefreshClick('lb-refresh-home')" title="Refresh">↻</button>
+      <button id="lb-expand" onclick="openLeaderboard()">See all →</button>
     </div>
   </div>
 </div>
@@ -369,9 +369,9 @@
 <!-- LEADERBOARD OVERLAY -->
 <div id="lb-overlay">
   <div id="lb-box">
-    <div style="position:relative;text-align:center;margin-bottom:1rem;">
-      <h2 style="margin:0;display:inline;">Leaderboard</h2>
-      <button class="lb-refresh-btn" id="lb-refresh-full" onclick="lbRefreshClick('lb-refresh-full')" title="Refresh" style="position:absolute;right:0;top:50%;transform:translateY(-50%);">↻</button>
+    <div style="position:relative;text-align:center;margin-bottom:1rem;display:flex;align-items:center;justify-content:center;">
+      <h2 style="margin:0;flex:1;text-align:center;">Leaderboard</h2>
+      <button class="lb-refresh-btn" id="lb-refresh-full" onclick="lbRefreshClick('lb-refresh-full')" title="Refresh">↻</button>
     </div>
     <div id="lb-scroll">
       <table id="lb-full-table">
@@ -495,7 +495,7 @@
     </div>
   </div>
 
-  <p id="info-version">2.0.0</p>
+  <p id="info-version">2.1.1</p>
 </div>
 <div id="gamescreen">
   <canvas id="gameCanvas"></canvas>
