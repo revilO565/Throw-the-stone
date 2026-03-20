@@ -319,7 +319,7 @@
 
   /* ── LEADERBOARD FULL OVERLAY ── */
   #lb-overlay {
-    display:none; position:fixed; inset:0; z-index:400;
+    display:none; position:fixed; inset:0; z-index:500;
     background:var(--overlay-bg); backdrop-filter:blur(6px);
     align-items:center; justify-content:center;
   }
@@ -2337,6 +2337,7 @@ function startLbAutoRefresh(){
 startLbAutoRefresh();
 
 function openLeaderboard(){
+  playSound('click');
   document.getElementById('lb-overlay').classList.add('visible');
   refreshLeaderboard();
 }
