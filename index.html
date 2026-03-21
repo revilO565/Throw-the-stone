@@ -2300,19 +2300,51 @@ async function submitName(){
     localStorage.setItem('tts_name', val);
     document.getElementById('name-overlay').classList.remove('visible');
     refreshLeaderboard();
+    startHeartbeat();
   }
 }
 
 // ── LEADERBOARD ─────────────────────────────────────────────────────
+// ── ONLINE HEARTBEAT ──────────────────────────────────────────────────
+let heartbeatId = null;
+
+async function sendHeartbeat(){
+  if(!playerName || !sbAvailable) return;
+  await sbFetch('leaderboard?name=eq.' + encodeURIComponent(playerName), {
+    method: 'PATCH', prefer: 'return=minimal',
+    body: JSON.stringify({ last_seen: new Date().toISOString() })
+  });
+}
+
+function startHeartbeat(){
+  if(heartbeatId) clearInterval(heartbeatId);
+  sendHeartbeat();
+  heartbeatId = setInterval(sendHeartbeat, 30000);
+}
+
+function stopHeartbeat(){
+  if(heartbeatId){ clearInterval(heartbeatId); heartbeatId = null; }
+}
+
+// Start heartbeat when on homescreen or in game
+window.addEventListener('load', ()=>{
+  if(!playerName){ openNameModal(); }
+  else { refreshLeaderboard(); startHeartbeat(); }
+});
+
 async function refreshLeaderboard(){
   try {
-    const rows = await sbFetch('leaderboard?select=name,score&order=score.desc&limit=100');
+    const rows = await sbFetch('leaderboard?select=name,score,last_seen&order=score.desc&limit=100');
     if(!rows) return;
+    const now = Date.now();
     const body = document.getElementById('lb-full-body');
     if(body){
       body.innerHTML = rows.map((r,i)=>{
         const isMe = r.name === playerName;
-        return `<tr class="${isMe?'me':''}"><td>${i+1}</td><td>${escHtml(r.name)}</td><td>${r.score}</td></tr>`;
+        const lastSeen = r.last_seen ? new Date(r.last_seen).getTime() : 0;
+        const isOnline = (now - lastSeen) < 60000; // online if seen within 60s
+        const dot = isOnline ? '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#22cc44;margin-right:5px;vertical-align:middle;flex-shrink:0;"></span>' : '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:5px;"></span>';
+        return `<tr class="${isMe?'me':''}"><td>${i+1}</td><td>${dot}${escHtml(r.name)}</td><td>${r.score}</td></tr>`;
       }).join('');
     }
   } catch(e){ console.warn('refreshLeaderboard error:', e); }
@@ -2371,13 +2403,6 @@ async function submitScore(){
 }
 
 // On load: show name modal if no name yet, else refresh leaderboard
-window.addEventListener('load', ()=>{
-  if(!playerName){
-    openNameModal();
-  } else {
-    refreshLeaderboard();
-  }
-});
 
 // ── DELETE ACCOUNT FLOW ───────────────────────────────────────────────
 let delCountdownTimer = null;
