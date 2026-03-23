@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Throw the Stone</title>
 <style>
   * { margin:0; padding:0; box-sizing:border-box; }
@@ -408,7 +408,10 @@
     <input type="range" id="vol-slider" min="0" max="1" step="0.01" value="1" oninput="setVolume(this.value); settingsChanged();">
   </div>
   <div class="setting-row">
-    <span class="setting-label">Light / Dark</span>
+    <div style="display:flex;flex-direction:column;gap:.3rem;flex:1;">
+      <span class="setting-label">Light / Dark</span>
+      <span id="dark-bh-warning" style="display:none;font-family:sans-serif;font-size:.75rem;color:#cc2200;line-height:1.4;">In dark mode, black holes are difficult to see.</span>
+    </div>
     <label class="toggle-wrap">
       <input type="checkbox" id="dark-toggle" onchange="toggleDark(this.checked); settingsChanged();">
       <div class="toggle-track"></div>
@@ -422,6 +425,7 @@
     <span class="setting-label">Delete account</span>
     <button class="info-btn" style="margin-top:0;padding:.45rem 1rem;font-size:.88rem;color:#cc2200;border-color:#cc2200;" onclick="openDelConfirm()">Delete</button>
   </div>
+  <p style="font-family:sans-serif;font-size:.72rem;color:var(--border);margin-top:1.5rem;">2.3.0</p>
 </div>
 
 <!-- SETTINGS SAVE? DIALOG -->
@@ -522,8 +526,6 @@
       <div class="info-canvas-wrap"><canvas id="ic-bh" width="90" height="90"></canvas></div>
     </div>
   </div>
-
-  <p id="info-version">2.2.0</p>
 </div>
 <div id="gamescreen">
   <canvas id="gameCanvas"></canvas>
@@ -540,6 +542,11 @@
     <button onclick="dbgSpawn('timed')">⏱ Timer Red</button>
     <button onclick="dbgSpawn('timedBlue')">⏱ Timer Blue</button>
     <button onclick="dbgSpawn('blackhole')">⚫ Black Hole</button>
+  </div>
+  <div id="zoom-warning" style="display:none;position:absolute;inset:0;z-index:300;background:rgba(180,0,0,0.55);align-items:center;justify-content:center;pointer-events:none;">
+    <div style="background:rgba(0,0,0,0.75);border:2px solid rgba(255,80,80,0.8);border-radius:10px;padding:1.5rem 2rem;text-align:center;max-width:380px;">
+      <p style="font-family:sans-serif;font-size:1rem;font-weight:700;color:#fff;line-height:1.5;margin:0;">Please set the zoom back to normal (100%), as it can be used to your advantage.</p>
+    </div>
   </div>
   <div id="pause-overlay">
     <div id="pause-box">
@@ -1319,7 +1326,9 @@ function getPos(e){
   return{x:(e.clientX-rect.left)*sx,y:(e.clientY-rect.top)*sy};
 }
 function onDown(e){
-  if(!gameRunning||!stonePos||stonesLeft<=0) return;
+  if(!gameRunning||!stonePos||stonesLeft<=0||zoomedIn) return;
+  // Only reset the 60s timer when fully idle — never interrupt active egg
+  if(idleEggPhase === 'idle') idleTimer = 0;
   const p=getPos(e);
   if(Math.sqrt((p.x-stonePos.x)**2+(p.y-stonePos.y)**2)<baseStoneR*1.7){
     isDragging=true; returnAnim=null;
@@ -1328,6 +1337,27 @@ function onDown(e){
   }
 }
 function onMove(e){
+  // Track mouse position for idle egg
+  const p2 = getPos(e);
+  idleMouseX = p2.x; idleMouseY = p2.y;
+  if(stonePos){
+    const dx = p2.x - stonePos.x, dy = p2.y - stonePos.y;
+    const onStone = Math.sqrt(dx*dx+dy*dy) < baseStoneR * 1.7;
+    if(idleEggPhase === 'sequence'){
+      if(onStone && !idleWasOnStone){
+        // Mouse entered stone from outside — trigger!
+        idleOnStone = true;
+        idleOnEnterStone();
+      } else if(!onStone){
+        idleWasOnStone = false;
+        idleOnStone = false;
+      } else {
+        idleOnStone = true;
+      }
+    } else if(idleEggPhase === 'hover_prompt' || idleEggPhase === 'watching' || idleEggPhase === 'pestering'){
+      idleOnStone = onStone;
+    }
+  }
   if(!isDragging) return;
   e.preventDefault();
   const p=getPos(e);
@@ -1360,6 +1390,8 @@ function onUp(e){
   const rx=stonePos.x, ry=stonePos.y;
   dragHistory=[];
   if(speed>=MIN_THROW_SPEED){
+    if(idleEggPhase==='watching'||idleEggPhase==='pestering') idleOnThrow();
+    // else: don't reset — let active messages finish naturally
     stonePos=null; targetPos=null;
     stonesLeft--;
     updateStoneCounter();
@@ -1490,7 +1522,190 @@ function applyBlackHoleGravity(stone, dt){
   stone.vy += (dy/dist) * force * dt;
   return false;
 }
-let lastTime=0, spawnTimer=0, nextSpawnIn=0;
+// ── IDLE EASTER EGG ──────────────────────────────────────────────────
+// Phases: 'idle' → 'sequence' → 'hover_prompt' → 'watching' → 'pestering' | 'done'
+let idleTimer = 0;
+let idleMsg = null;
+let idleEggPhase = 'idle';
+let idleTimeoutId = null;
+let idleMouseX = -999, idleMouseY = -999;
+let idleWasOnStone = false;   // mouse was on stone when phase started (ignore until it leaves first)
+let idleOnStone = false;      // current hover state
+let idleWatchTimer = 0;
+let idlePesterShown = 0;
+
+const IDLE_SEQUENCE = [
+  { text: "Don't you want to play?",                             delay: 0 },
+  { text: "I mean... you haven't done anything here for a minute...", delay: 3000 },
+  { text: "Just do whatever you want. I don't care.",            delay: 3200 },
+  { text: "What is it?",                                         delay: 10000 },
+  { text: "Is this game crap?",                                  delay: 3000 },
+  { text: "Well, there's nothing I can do.",                     delay: 3000 },
+  { text: "Are you hacking?",                                    delay: 5000 },
+  { text: "If so, then...",                                      delay: 2500 },
+  { text: "Well, then...",                                       delay: 2500 },
+  { text: "Why am I even talking to you?",                       delay: 3000 },
+  { text: "So... I'm going now.",                                delay: 3000 },
+];
+let idleSeqIdx = 0;
+
+function idleClearTimeout(){
+  if(idleTimeoutId){ clearTimeout(idleTimeoutId); idleTimeoutId = null; }
+}
+
+function idleShow(text){
+  idleMsg = { text, born: performance.now() };
+}
+
+function resetIdleEgg(){
+  idleClearTimeout();
+  idleTimer = 0;
+  idleMsg = null;
+  idleEggPhase = 'idle';
+  idleSeqIdx = 0;
+  idleWasOnStone = false;
+  idleOnStone = false;
+  idleWatchTimer = 0;
+  idlePesterShown = 0;
+}
+
+function idleRunSequence(){
+  if(idleEggPhase !== 'sequence') return;
+  if(idleSeqIdx >= IDLE_SEQUENCE.length){
+    idleEggPhase = 'done';
+    return;
+  }
+  const entry = IDLE_SEQUENCE[idleSeqIdx];
+  const delay = idleSeqIdx === 0 ? 0 : entry.delay;
+  idleTimeoutId = setTimeout(()=>{
+    if(idleEggPhase !== 'sequence' || !gameRunning || gamePaused || zoomedIn) return;
+    idleShow(entry.text);
+    idleSeqIdx++;
+    idleRunSequence();
+  }, delay);
+}
+
+// Called from onMove when mouse enters stone during sequence
+function idleOnEnterStone(){
+  if(idleEggPhase !== 'sequence') return;
+  // Stop the sequence
+  idleClearTimeout();
+  idleEggPhase = 'hover_prompt';
+  idleMsg = null;
+  idleShow("Yes! Throw the stone!");
+  idleWatchTimer = 0;
+  idlePesterShown = 0;
+  // After prompt fades, move to watching
+  idleTimeoutId = setTimeout(()=>{
+    if(idleEggPhase !== 'hover_prompt') return;
+    idleEggPhase = 'watching';
+    idleWatchTimer = 0;
+    // Re-check if mouse is still on stone
+    if(stonePos){
+      const dx = idleMouseX - stonePos.x, dy = idleMouseY - stonePos.y;
+      idleOnStone = Math.sqrt(dx*dx+dy*dy) < baseStoneR * 1.7;
+    } else {
+      idleOnStone = false;
+    }
+  }, 2800);
+}
+
+// Called when stone is thrown during watching/pestering
+function idleOnThrow(){
+  if(idleEggPhase !== 'watching' && idleEggPhase !== 'pestering') return;
+  idleClearTimeout();
+  idleEggPhase = 'done';
+  idleShow("Good, keep it up!");
+  idleTimeoutId = setTimeout(()=>{
+    idleShow("Just keep going... I have to go now.");
+    idleTimeoutId = setTimeout(()=>{ idleMsg=null; }, 3200);
+  }, 3000);
+}
+
+// Called when mouse leaves stone during watching
+function idleOnLeaveStone(){
+  if(idleEggPhase !== 'watching' && idleEggPhase !== 'pestering') return;
+  idleClearTimeout();
+  idleEggPhase = 'done';
+  idleShow("No! Go back to the stone!");
+  idleTimeoutId = setTimeout(()=>{
+    idleShow("I give up, you won.");
+    idleTimeoutId = setTimeout(()=>{ idleMsg=null; }, 3000);
+  }, 3000);
+}
+
+function updateIdleEgg(dt){
+  if(!gameRunning || gamePaused || zoomedIn) return;
+
+  // Phase: idle — count 60s
+  if(idleEggPhase === 'idle'){
+    idleTimer += dt;
+    if(idleTimer >= 60000){
+      idleEggPhase = 'sequence';
+      // Record if mouse already on stone — must leave first before triggering
+      if(stonePos){
+        const dx = idleMouseX - stonePos.x, dy = idleMouseY - stonePos.y;
+        idleWasOnStone = Math.sqrt(dx*dx+dy*dy) < baseStoneR * 1.7;
+      }
+      idleRunSequence();
+    }
+    return;
+  }
+
+  // Phase: watching — check for leave or pester
+  if(idleEggPhase === 'watching'){
+    idleWatchTimer += dt;
+    const onStone = stonePos ? (()=>{ const dx=idleMouseX-stonePos.x,dy=idleMouseY-stonePos.y; return Math.sqrt(dx*dx+dy*dy)<baseStoneR*1.7; })() : false;
+    idleOnStone = onStone;
+    if(!onStone){
+      idleOnLeaveStone();
+      return;
+    }
+    if(idleWatchTimer > 4000 && idlePesterShown === 0){
+      idlePesterShown = 1;
+      idleEggPhase = 'pestering';
+      idleShow("Come on, throw it...");
+      idleTimeoutId = setTimeout(()=>{
+        if(idleEggPhase !== 'pestering') return;
+        idleShow("Please!");
+        idlePesterShown = 2;
+        idleTimeoutId = setTimeout(()=>{
+          if(idleEggPhase !== 'pestering') return;
+          idleShow("What's so difficult about it? Okay, I give up, bye.");
+          idleEggPhase = 'done';
+          idleTimeoutId = setTimeout(()=>{ idleMsg=null; }, 3500);
+        }, 2800);
+      }, 2800);
+    }
+    return;
+  }
+
+  // Phase: pestering — check for leave
+  if(idleEggPhase === 'pestering'){
+    const onStone = stonePos ? (()=>{ const dx=idleMouseX-stonePos.x,dy=idleMouseY-stonePos.y; return Math.sqrt(dx*dx+dy*dy)<baseStoneR*1.7; })() : false;
+    if(!onStone) idleOnLeaveStone();
+  }
+}
+
+function drawIdleMsg(){
+  if(!idleMsg || gamePaused || zoomedIn) return;
+  const age = (performance.now() - idleMsg.born) / 1000;
+  // Fade in 0.4s, hold until 2.2s, fade out 0.6s
+  let alpha;
+  if(age < 0.4)       alpha = age / 0.4;
+  else if(age < 2.2)  alpha = 1;
+  else if(age < 2.8)  alpha = 1 - (age - 2.2) / 0.6;
+  else { idleMsg = null; return; }
+
+  ctx.save();
+  ctx.globalAlpha = alpha * 0.82;
+  ctx.font = 'italic ' + Math.round(Math.min(W,H)*0.032) + 'px sans-serif';
+  ctx.fillStyle = document.body.classList.contains('dark') ? '#ccc' : '#333';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(idleMsg.text, W/2, H * 0.5);
+  ctx.restore();
+}
 function randomSpawnDelay(){ return 800 + Math.random()*3200; } // 0.8s – 4s
 function loop(ts){
   if(!gameRunning || gamePaused) return;
@@ -1547,6 +1762,8 @@ function loop(ts){
   drawBlackHole(); // draw on top of targets/stones
   drawHeldStone();
   drawPopups();
+  updateIdleEgg(dt);
+  drawIdleMsg();
   requestAnimationFrame(loop);
 }
 
@@ -1680,6 +1897,7 @@ function startGame(){
   resize();
   baseStoneR=Math.min(W,H)*.11;
   gameRunning=true; gamePaused=false; score=0; currentVariant=0;
+  resetIdleEgg();
   stonesLeft=30; stoneCountdown=null; updateStoneCounter();
   document.getElementById('pause-box').querySelector('h2').textContent = 'Paused';
   document.getElementById('btn-continue').style.display = 'block';
@@ -1719,6 +1937,7 @@ function restartGame(){
 function showGameOver(){
   if(!gameRunning) return;
   gameRunning = false;
+  setZoomWarning(false);
   playSound('gameover');
   submitScore();
   document.getElementById('pause-box').querySelector('h2').textContent = 'Game Over';
@@ -2857,6 +3076,8 @@ function openSettings(){
   document.getElementById('settingsscreen').classList.add('visible');
   document.getElementById('vol-slider').value = masterVolume;
   document.getElementById('dark-toggle').checked = document.body.classList.contains('dark');
+  const w = document.getElementById('dark-bh-warning');
+  if(w) w.style.display = document.body.classList.contains('dark') ? 'block' : 'none';
   // Snapshot = current LIVE values (what user sees right now) — used for revert on "Don't save"
   settingsSnapshot = {
     vol:  masterVolume,
@@ -2905,7 +3126,11 @@ function sbBackToSettings(){
 }
 
 function setVolume(v){ masterVolume = parseFloat(v); }
-function toggleDark(on){ document.body.classList.toggle('dark', on); }
+function toggleDark(on){
+  document.body.classList.toggle('dark', on);
+  const w = document.getElementById('dark-bh-warning');
+  if(w) w.style.display = on ? 'block' : 'none';
+}
 
 function openConfirmReset(){
   playSound('click');
@@ -3125,6 +3350,31 @@ window.addEventListener('resize',()=>{
   resize(); baseStoneR=Math.min(W,H)*.11;
   if(!isDragging&&stonePos){const h=homePos();stonePos.x=h.x;stonePos.y=h.y;}
 });
+
+// Disable right-click context menu
+document.addEventListener('contextmenu', e => e.preventDefault());
+
+// ── ZOOM DETECTION ────────────────────────────────────────────────────
+let zoomedIn = false;
+
+function checkZoom(){
+  if(!gameRunning || gamePaused){
+    zoomedIn = false;
+    document.getElementById('zoom-warning').style.display = 'none';
+    return;
+  }
+  // Use devicePixelRatio × CSS viewport width vs screen.width
+  // At 100% zoom on a 1920px screen: innerWidth ≈ 1920, screen.width = 1920
+  // At 125% zoom: innerWidth ≈ 1536, screen.width = 1920
+  const ratio = (screen.width / window.innerWidth);
+  const isZoomed = ratio < 0.9 || ratio > 1.15;
+  zoomedIn = isZoomed;
+  document.getElementById('zoom-warning').style.display =
+    isZoomed ? 'flex' : 'none';
+}
+
+setInterval(checkZoom, 800);
+window.addEventListener('resize', () => setTimeout(checkZoom, 300));
 
 // Wire up leaderboard button after DOM + script are fully loaded
 document.getElementById('btn-leaderboard').addEventListener('click', openLeaderboard);
