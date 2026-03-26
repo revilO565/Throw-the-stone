@@ -19,7 +19,54 @@
   body { width:100vw; height:100vh; overflow:hidden; background:var(--bg); font-family:sans-serif; user-select:none; cursor:default; transition:background .25s,color .25s; }
 
   /* ── HOME ── */
-  #homescreen { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; background:var(--bg); z-index:100; transition:background .25s; }
+  #homescreen { position:absolute; inset:0; display:flex; background:var(--bg); z-index:100; transition:background .25s; overflow:hidden; }
+
+  /* Splash screen */
+  #splash {
+    position:absolute; inset:0; z-index:200; background:var(--bg);
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    transition:background .25s;
+  }
+  #splash h1 { font-size:clamp(3rem,9vw,7.5rem); font-weight:900; color:var(--fg); text-align:center; line-height:1.05; margin-bottom:2rem; }
+  #splash-click { font-family:sans-serif; font-size:1rem; color:var(--fg3); animation:splashBlink 1.4s ease-in-out infinite; }
+  @keyframes splashBlink { 0%,100%{opacity:1} 50%{opacity:0.1} }
+  #splash-fade { position:absolute; inset:0; background:#000; opacity:0; pointer-events:none; transition:opacity .4s ease-in; }
+
+  /* Page carousel */
+  #home-pages-wrap {
+    position:absolute; inset:0;
+    display:none; /* shown after splash */
+    overflow:hidden;
+  }
+  #home-pages {
+    display:flex; height:100%;
+    transition:transform .4s cubic-bezier(.4,0,.2,1);
+  }
+  .home-page {
+    min-width:100vw; height:100%;
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    position:relative;
+  }
+  .home-page-title { font-size:clamp(2rem,6vw,4rem); font-weight:900; color:var(--fg); text-align:center; margin-bottom:1.8rem; }
+  .page-nav-btn {
+    position:absolute; top:50%; transform:translateY(-50%);
+    background:var(--btn-bg); border:1px solid var(--border); border-radius:5px;
+    font-size:1.4rem; font-weight:700; color:var(--fg); cursor:pointer;
+    padding:.5rem .85rem; line-height:1; transition:background .12s;
+  }
+  .page-nav-btn:hover { background:var(--bg2); }
+  .page-nav-btn.next { right:18px; }
+  .page-nav-btn.prev { left:18px; }
+
+  #home-settings-global {
+    position:fixed; top:14px; left:16px; z-index:210;
+    background:var(--btn-bg); border:1px solid var(--border); border-radius:5px;
+    cursor:pointer; font-size:1.6rem; color:var(--fg); line-height:1; padding:.45rem .75rem;
+    transition:background .12s;
+    display:none; /* shown after splash */
+  }
+  #home-settings-global:hover { background:var(--bg2); }
+
   .home-title { font-size:clamp(3rem,9vw,7.5rem); font-weight:900; color:var(--fg); text-align:center; line-height:1.05; margin-bottom:2rem; }
   .start-btn { padding:.95rem 3.2rem; font-family:sans-serif; font-size:1.1rem; font-weight:700; letter-spacing:.08em; color:var(--bg); background:var(--fg); border:none; border-radius:4px; cursor:pointer; box-shadow:0 4px 18px rgba(0,0,0,.18); transition:transform .1s,background .15s,color .15s; }
   .start-btn:hover { opacity:.85; transform:translateY(-2px); }
@@ -31,7 +78,7 @@
   #score-display { position:absolute; top:18px; right:22px; font-family:sans-serif; color:var(--fg); font-size:1.2rem; font-weight:700; pointer-events:none; }
 
   /* ── PAUSE BUTTON ── */
-  #home-highscore { font-family:sans-serif; font-size:.95rem; color:var(--fg3); margin-top:1rem; }
+  #home-highscore, .home-highscore-p { font-family:sans-serif; font-size:.95rem; color:var(--fg3); margin-top:1rem; }
 
   /* ── NEW HIGH SCORE BANNER ── */
   #new-highscore-banner {
@@ -355,12 +402,40 @@
 </head>
 <body>
 <div id="homescreen">
-  <button id="home-settings-btn" onclick="openSettings()" title="Settings" style="position:absolute;top:14px;left:16px;background:var(--btn-bg);border:1px solid var(--border);border-radius:5px;cursor:pointer;font-size:1.6rem;color:var(--fg);line-height:1;padding:.45rem .75rem;">⚙</button>
-  <h1 class="home-title">Throw<br>the Stone</h1>
-  <button class="start-btn" onclick="startGame()">START</button>
-  <button class="info-btn" id="btn-leaderboard">Leaderboard</button>
-  <button class="info-btn" onclick="openInfo()">Information</button>
-  <p id="home-highscore"></p>
+  <!-- SPLASH -->
+  <div id="splash">
+    <h1>Throw<br>the Stone</h1>
+    <p id="splash-click">Click to start</p>
+    <div id="splash-fade"></div>
+  </div>
+
+  <!-- GLOBAL SETTINGS GEAR (shown after splash) -->
+  <button id="home-settings-global" onclick="openSettings()" title="Settings">⚙</button>
+
+  <!-- PAGE CAROUSEL -->
+  <div id="home-pages-wrap">
+    <div id="home-pages">
+
+      <!-- PAGE 1: CLASSIC -->
+      <div class="home-page" id="page-classic">
+        <h2 class="home-page-title">Classic</h2>
+        <button class="start-btn" onclick="startGameMode('classic')">START</button>
+        <button class="info-btn" id="btn-lb-classic" style="margin-top:.7rem;">Leaderboard</button>
+        <p id="home-highscore"></p>
+        <button class="page-nav-btn next" onclick="goToPage(1)">›</button>
+      </div>
+
+      <!-- PAGE 2: TIMER TARGETS -->
+      <div class="home-page" id="page-timer">
+        <h2 class="home-page-title">Timer Targets</h2>
+        <button class="start-btn" onclick="startGameMode('timer')">START</button>
+        <button class="info-btn" id="btn-lb-timer" style="margin-top:.7rem;">Leaderboard</button>
+        <p id="home-highscore-timer" class="home-highscore-p"></p>
+        <button class="page-nav-btn prev" onclick="goToPage(0)">‹</button>
+      </div>
+
+    </div>
+  </div>
 </div>
 
 <!-- NAME MODAL -->
@@ -377,11 +452,11 @@
   </div>
 </div>
 
-<!-- LEADERBOARD OVERLAY -->
+<!-- LEADERBOARD OVERLAY (Classic) -->
 <div id="lb-overlay" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.7);align-items:center;justify-content:center;">
   <div id="lb-box" style="background:var(--bg);border-radius:12px;padding:1.6rem 1.8rem;box-shadow:0 8px 40px rgba(0,0,0,.3);width:90%;max-width:380px;max-height:80vh;display:flex;flex-direction:column;">
     <div style="display:flex;align-items:center;justify-content:center;margin-bottom:1rem;">
-      <h2 style="margin:0;flex:1;text-align:center;font-size:1.3rem;font-weight:900;color:var(--fg);">Leaderboard</h2>
+      <h2 style="margin:0;flex:1;text-align:center;font-size:1.3rem;font-weight:900;color:var(--fg);">Classic Leaderboard</h2>
       <button onclick="lbRefreshClick('lb-refresh-full')" id="lb-refresh-full" class="lb-refresh-btn" style="background:none;border:none;cursor:pointer;font-size:1rem;color:var(--fg3);" title="Refresh">↻</button>
     </div>
     <div id="lb-scroll" style="overflow-y:auto;flex:1;">
@@ -395,6 +470,27 @@
       </table>
     </div>
     <button onclick="closeLeaderboard()" style="margin-top:1rem;width:100%;padding:.6rem;font-family:sans-serif;font-size:.95rem;font-weight:700;background:var(--fg);color:var(--bg);border:none;border-radius:5px;cursor:pointer;">Close</button>
+  </div>
+</div>
+
+<!-- LEADERBOARD OVERLAY (Timer Targets) -->
+<div id="lb-overlay-timer" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.7);align-items:center;justify-content:center;">
+  <div style="background:var(--bg);border-radius:12px;padding:1.6rem 1.8rem;box-shadow:0 8px 40px rgba(0,0,0,.3);width:90%;max-width:380px;max-height:80vh;display:flex;flex-direction:column;">
+    <div style="display:flex;align-items:center;justify-content:center;margin-bottom:1rem;">
+      <h2 style="margin:0;flex:1;text-align:center;font-size:1.3rem;font-weight:900;color:var(--fg);">Timer Targets Leaderboard</h2>
+      <button onclick="lbRefreshClick('lb-refresh-timer')" id="lb-refresh-timer" class="lb-refresh-btn" style="background:none;border:none;cursor:pointer;font-size:1rem;color:var(--fg3);" title="Refresh">↻</button>
+    </div>
+    <div style="overflow-y:auto;flex:1;">
+      <table style="width:100%;border-collapse:collapse;font-family:sans-serif;font-size:.9rem;">
+        <thead><tr>
+          <th style="color:var(--fg3);font-weight:700;padding:.3rem .4rem;border-bottom:1px solid var(--border);text-align:left;">#</th>
+          <th style="color:var(--fg3);font-weight:700;padding:.3rem .4rem;border-bottom:1px solid var(--border);text-align:left;">Name</th>
+          <th style="color:var(--fg3);font-weight:700;padding:.3rem .4rem;border-bottom:1px solid var(--border);text-align:right;">Score</th>
+        </tr></thead>
+        <tbody id="lb-timer-body"></tbody>
+      </table>
+    </div>
+    <button onclick="closeTimerLeaderboard()" style="margin-top:1rem;width:100%;padding:.6rem;font-family:sans-serif;font-size:.95rem;font-weight:700;background:var(--fg);color:var(--bg);border:none;border-radius:5px;cursor:pointer;">Close</button>
   </div>
 </div>
 
@@ -422,10 +518,14 @@
     <button class="info-btn" style="margin-top:0;padding:.45rem 1rem;font-size:.88rem;" onclick="openRename()">Rename</button>
   </div>
   <div class="setting-row">
+    <span class="setting-label">Information</span>
+    <button class="info-btn" style="margin-top:0;padding:.45rem 1rem;font-size:.88rem;" onclick="openInfo()">Open</button>
+  </div>
+  <div class="setting-row">
     <span class="setting-label">Delete account</span>
     <button class="info-btn" style="margin-top:0;padding:.45rem 1rem;font-size:.88rem;color:#cc2200;border-color:#cc2200;" onclick="openDelConfirm()">Delete</button>
   </div>
-  <p style="font-family:sans-serif;font-size:.72rem;color:var(--border);margin-top:1.5rem;">2.3.0</p>
+  <p style="font-family:sans-serif;font-size:.72rem;color:var(--border);margin-top:1.5rem;">2.2.0</p>
 </div>
 
 <!-- SETTINGS SAVE? DIALOG -->
@@ -530,6 +630,15 @@
 <div id="gamescreen">
   <canvas id="gameCanvas"></canvas>
   <div id="score-display">Score: <span id="score">0</span></div>
+  <div id="pressure-bar-wrap" style="display:none;position:absolute;top:14px;left:50%;transform:translateX(-50%);width:200px;text-align:center;">
+    <div style="width:200px;height:14px;background:rgba(0,0,0,.15);border-radius:7px;overflow:hidden;">
+      <div id="pressure-bar" style="height:100%;width:100%;border-radius:7px;transition:background .3s;"></div>
+    </div>
+    <div id="pressure-penalty" style="display:flex;align-items:center;justify-content:center;gap:3px;margin-top:3px;min-height:18px;">
+      <span id="pressure-penalty-text" style="font-family:sans-serif;font-size:.78rem;font-weight:700;color:#cc2200;display:none;">-3</span>
+      <canvas id="pressure-penalty-stone" width="18" height="14" style="display:none;"></canvas>
+    </div>
+  </div>
   <button id="pause-btn" onclick="pauseGame()">Pause (Esc)</button>
   <div id="stone-counter"><span id="stone-count">20</span><canvas id="stone-icon" width="28" height="22"></canvas></div>
   <div id="new-highscore-banner">New high score!</div>
@@ -560,6 +669,7 @@
       <div class="pause-btns" style="margin-top:.6rem;">
         <button id="btn-pause-restart" onclick="restartGame()" style="background:var(--bg2);color:var(--fg);">Restart</button>
       </div>
+      <p id="pause-mode-label" style="font-family:sans-serif;font-size:.78rem;color:var(--fg3);margin-top:1rem;"></p>
     </div>
   </div>
 </div>
@@ -681,12 +791,20 @@ function getTex(r,variant=0){
 
 // ── GAME STATE ────────────────────────────────────────────────────────
 let score=0, targets=[], flyingStones=[], gameRunning=false;
+let gameMode = 'classic'; // 'classic' | 'timer'
+let currentPage = 0;
+let splashDone = false;
 let stonePos=null, targetPos=null, isDragging=false;
 let dragHistory=[], returnAnim=null, currentVariant=0;
 let stonesLeft = 30;
 let stoneCountdown = null;
 let yellowSpawned = false;
-let blackHole = null; // only one at a time
+let blackHole = null;
+
+// ── PRESSURE BAR (Classic only) ───────────────────────────────────────
+const PRESSURE_DURATION = 4000; // ms
+let pressureTimer = 0;
+let pressurePenaltyAnim = null; // {born, text}
 
 // Draw a stone texture onto any 2d context at (cx,cy) with radius r
 function drawStoneOnCtx(c, cx, cy, r){
@@ -716,22 +834,31 @@ function updateStoneCounter(){
 }
 
 // ── HIGH SCORE ────────────────────────────────────────────────────────
-let highScore = parseInt(localStorage.getItem('tts_highscore') || '0');
 let newHighScoreShown = false;
 let newHighScoreTimer = null;
+
+let highScore = parseInt(localStorage.getItem('tts_highscore') || '0');
+let highScoreTimer = parseInt(localStorage.getItem('tts_highscore_timer') || '0');
+
+function getHighScore(){ return gameMode === 'timer' ? highScoreTimer : highScore; }
+function setHighScore(v){
+  if(gameMode === 'timer'){ highScoreTimer = v; localStorage.setItem('tts_highscore_timer', v); }
+  else { highScore = v; localStorage.setItem('tts_highscore', v); }
+}
 
 function updateHomeHighscore(){
   const el = document.getElementById('home-highscore');
   el.textContent = highScore > 0 ? 'High score: ' + highScore : '';
+  const el2 = document.getElementById('home-highscore-timer');
+  if(el2) el2.textContent = highScoreTimer > 0 ? 'High score: ' + highScoreTimer : '';
 }
 updateHomeHighscore();
 
 function checkHighScore(){
-  if(debugMode) return; // no highscores in debug mode
-  if(score > highScore){
-    const wasZero = highScore === 0;
-    highScore = score;
-    localStorage.setItem('tts_highscore', highScore);
+  if(debugMode) return;
+  if(score > getHighScore()){
+    const wasZero = getHighScore() === 0;
+    setHighScore(score);
     if(!wasZero && !newHighScoreShown){
       newHighScoreShown = true;
       playSound('highscore');
@@ -746,10 +873,10 @@ function checkHighScore(){
 // ── TARGETS ───────────────────────────────────────────────────────────
 // Score-based moving target params
 function movingParams(r){
-  if(score >= 50) return { chance:0.30, speedBase:0.00042, speedRng:0.00030 };
-  if(score >= 40) return { chance:0.25, speedBase:0.00030, speedRng:0.00022 };
-  if(score >= 30) return { chance:0.18, speedBase:0.00022, speedRng:0.00016 };
-  return               { chance:0.10, speedBase:0.00015, speedRng:0.00012 }; // score >= 20
+  if(score >= 50) return { chance:0.30, speedBase:0.00110, speedRng:0.00070 };
+  if(score >= 40) return { chance:0.25, speedBase:0.00080, speedRng:0.00055 };
+  if(score >= 30) return { chance:0.18, speedBase:0.00058, speedRng:0.00038 };
+  return               { chance:0.10, speedBase:0.00038, speedRng:0.00025 };
 }
 
 // Floating score popups (e.g. "3x")
@@ -770,11 +897,16 @@ function spawnTarget(){
     sx = margin + Math.random()*(W - margin*2);
     sy = margin + Math.random()*(ground*0.52 - margin*2);
     tries++;
-    const ok = targets.every(t => {
+    const okTargets = targets.every(t => {
       const dx=sx-t.screenX, dy=sy-t.screenY;
       return Math.sqrt(dx*dx+dy*dy) > r + t.renderR + 20;
     });
-    if(ok || tries>=40) break;
+    // Keep minimum distance from black hole
+    const okBH = !blackHole || (()=>{
+      const dx=sx-blackHole.x, dy=sy-blackHole.y;
+      return Math.sqrt(dx*dx+dy*dy) > blackHole.r * blackHole.scale * 2.5 + r + 40;
+    })();
+    if((okTargets && okBH) || tries>=40) break;
   } while(true);
 
   // Moving target
@@ -793,22 +925,29 @@ function spawnTarget(){
     }
   }
 
-  // Green (armored) target: 10% chance at score >= 50, worth 3 pts, 2 lives
-  const green = score >= 30 && Math.random() < 0.10;
+  // Green (armored) target: 10% chance at score >= 30, worth 3 pts, 2 lives — classic only
+  const green = gameMode === 'classic' && score >= 30 && Math.random() < 0.10;
 
-  // Blue target: gives 3 stones, no points. Chance decreases with score.
+  // Blue target: gives stones. Chance decreases with score — same formula both modes
   const blueChance = Math.max(0.12, 0.42 - score * 0.003);
   const blue = !green && Math.random() < blueChance;
 
-  // Yellow target: once per game, 10% at score 20-29, then 1% at 30+. No points, +10 stones.
+  // Yellow target: once per game, +10 stones
   const yellowChance = score >= 20 ? 0.02 : 0;
   const yellow = !green && !blue && !yellowSpawned && Math.random() < yellowChance;
 
-  // Timer target: red, 5s timer, -5 pts on expire. 30% at score >= 40.
-  const timed = !green && !blue && !yellow && score >= 40 && Math.random() < 0.15;
-
-  // Timer blue target: blue, same timer, -5 stones on expire. 15% at score >= 40.
-  const timedBlue = !green && !blue && !yellow && !timed && score >= 40 && Math.random() < 0.15;
+  // Timer modes
+  let timed = false, timedBlue = false;
+  if(gameMode === 'timer'){
+    // Only: blue, yellow, timedRed, timedBlue, blackhole — NEVER plain red or green
+    timed = !blue && !yellow && Math.random() < 0.55;
+    timedBlue = !blue && !yellow && !timed;
+    // If somehow neither: force timedRed
+    if(!blue && !yellow && !timed && !timedBlue) timed = true;
+  } else {
+    timed = !green && !blue && !yellow && score >= 40 && Math.random() < 0.15;
+    timedBlue = !green && !blue && !yellow && !timed && score >= 40 && Math.random() < 0.15;
+  }
 
   targets.push({
     screenX: sx, screenY: sy,
@@ -855,7 +994,7 @@ function updateTargets(dt){
           });
           // Check if out of stones
           if(stonesLeft <= 0){
-            setTimeout(()=>{ if(stonesLeft <= 0) showGameOver(); }, 1800);
+            triggerGameOver(1800);
           }
         } else {
           // Deduct 5 points
@@ -1327,8 +1466,6 @@ function getPos(e){
 }
 function onDown(e){
   if(!gameRunning||!stonePos||stonesLeft<=0||zoomedIn) return;
-  // Only reset the 60s timer when fully idle — never interrupt active egg
-  if(idleEggPhase === 'idle') idleTimer = 0;
   const p=getPos(e);
   if(Math.sqrt((p.x-stonePos.x)**2+(p.y-stonePos.y)**2)<baseStoneR*1.7){
     isDragging=true; returnAnim=null;
@@ -1337,27 +1474,6 @@ function onDown(e){
   }
 }
 function onMove(e){
-  // Track mouse position for idle egg
-  const p2 = getPos(e);
-  idleMouseX = p2.x; idleMouseY = p2.y;
-  if(stonePos){
-    const dx = p2.x - stonePos.x, dy = p2.y - stonePos.y;
-    const onStone = Math.sqrt(dx*dx+dy*dy) < baseStoneR * 1.7;
-    if(idleEggPhase === 'sequence'){
-      if(onStone && !idleWasOnStone){
-        // Mouse entered stone from outside — trigger!
-        idleOnStone = true;
-        idleOnEnterStone();
-      } else if(!onStone){
-        idleWasOnStone = false;
-        idleOnStone = false;
-      } else {
-        idleOnStone = true;
-      }
-    } else if(idleEggPhase === 'hover_prompt' || idleEggPhase === 'watching' || idleEggPhase === 'pestering'){
-      idleOnStone = onStone;
-    }
-  }
   if(!isDragging) return;
   e.preventDefault();
   const p=getPos(e);
@@ -1390,8 +1506,6 @@ function onUp(e){
   const rx=stonePos.x, ry=stonePos.y;
   dragHistory=[];
   if(speed>=MIN_THROW_SPEED){
-    if(idleEggPhase==='watching'||idleEggPhase==='pestering') idleOnThrow();
-    // else: don't reset — let active messages finish naturally
     stonePos=null; targetPos=null;
     stonesLeft--;
     updateStoneCounter();
@@ -1402,10 +1516,12 @@ function onUp(e){
     flyingStones.push(new FlyingStone(rx,ry,vx,vy,baseStoneR,currentVariant));
     currentVariant=(currentVariant+1)%STONE_VARIANTS.length;
     playSound('throw');
+    // Reset pressure bar on throw
+    if(gameMode === 'classic'){ pressureTimer = 0; updatePressureBarUI(1); }
     if(stonesLeft <= 0){
       // Schedule game over, but re-check stonesLeft at that time
       // (player may have hit a blue target in the meantime and gained stones)
-      setTimeout(()=>{ if(stonesLeft <= 0) showGameOver(); }, 1800);
+      triggerGameOver(1800);
       setTimeout(resetStone, 520);
     } else {
       setTimeout(resetStone,520);
@@ -1449,14 +1565,26 @@ const BH_ABSORB_R = 0.40;
 
 function trySpawnBlackHole(){
   if(blackHole) return;
-  if(score < 50) return;
-  if(Math.random() >= 0.20) return;
+  const scoreThreshold = gameMode === 'timer' ? 20 : 50;
+  if(score < scoreThreshold) return;
+  const spawnChance = gameMode === 'timer' ? 0.30 : 0.20;
+  if(Math.random() >= spawnChance) return;
   const ground = gY();
-  const r = Math.min(W,H) * 0.095; // bigger
+  const r = Math.min(W,H) * 0.095;
   const margin = r * 2;
-  const x = margin + Math.random() * (W - margin*2);
-  const y = margin + Math.random() * (ground*0.6 - margin*2);
-  const duration = 10000 + Math.random() * 5000; // 10–15s
+  // Try to find position away from existing targets
+  let x, y, tries = 0;
+  do {
+    x = margin + Math.random() * (W - margin*2);
+    y = margin + Math.random() * (ground*0.6 - margin*2);
+    tries++;
+    const okTargets = targets.every(t => {
+      const dx = x - t.screenX, dy = y - t.screenY;
+      return Math.sqrt(dx*dx+dy*dy) > r * 2.5 + t.renderR * t.scale + 40;
+    });
+    if(okTargets || tries >= 30) break;
+  } while(true);
+  const duration = 10000 + Math.random() * 5000;
   blackHole = { x, y, r, born: Date.now(), duration,
                 scale: 0, phase: 0, dying: false, dyingStart: 0,
                 stonesAbsorbed: 0 };
@@ -1522,191 +1650,81 @@ function applyBlackHoleGravity(stone, dt){
   stone.vy += (dy/dist) * force * dt;
   return false;
 }
-// ── IDLE EASTER EGG ──────────────────────────────────────────────────
-// Phases: 'idle' → 'sequence' → 'hover_prompt' → 'watching' → 'pestering' | 'done'
-let idleTimer = 0;
-let idleMsg = null;
-let idleEggPhase = 'idle';
-let idleTimeoutId = null;
-let idleMouseX = -999, idleMouseY = -999;
-let idleWasOnStone = false;   // mouse was on stone when phase started (ignore until it leaves first)
-let idleOnStone = false;      // current hover state
-let idleWatchTimer = 0;
-let idlePesterShown = 0;
-
-const IDLE_SEQUENCE = [
-  { text: "Don't you want to play?",                             delay: 0 },
-  { text: "I mean... you haven't done anything here for a minute...", delay: 3000 },
-  { text: "Just do whatever you want. I don't care.",            delay: 3200 },
-  { text: "What is it?",                                         delay: 10000 },
-  { text: "Is this game crap?",                                  delay: 3000 },
-  { text: "Well, there's nothing I can do.",                     delay: 3000 },
-  { text: "Are you hacking?",                                    delay: 5000 },
-  { text: "If so, then...",                                      delay: 2500 },
-  { text: "Well, then...",                                       delay: 2500 },
-  { text: "Why am I even talking to you?",                       delay: 3000 },
-  { text: "So... I'm going now.",                                delay: 3000 },
-];
-let idleSeqIdx = 0;
-
-function idleClearTimeout(){
-  if(idleTimeoutId){ clearTimeout(idleTimeoutId); idleTimeoutId = null; }
-}
-
-function idleShow(text){
-  idleMsg = { text, born: performance.now() };
-}
-
-function resetIdleEgg(){
-  idleClearTimeout();
-  idleTimer = 0;
-  idleMsg = null;
-  idleEggPhase = 'idle';
-  idleSeqIdx = 0;
-  idleWasOnStone = false;
-  idleOnStone = false;
-  idleWatchTimer = 0;
-  idlePesterShown = 0;
-}
-
-function idleRunSequence(){
-  if(idleEggPhase !== 'sequence') return;
-  if(idleSeqIdx >= IDLE_SEQUENCE.length){
-    idleEggPhase = 'done';
-    return;
-  }
-  const entry = IDLE_SEQUENCE[idleSeqIdx];
-  const delay = idleSeqIdx === 0 ? 0 : entry.delay;
-  idleTimeoutId = setTimeout(()=>{
-    if(idleEggPhase !== 'sequence' || !gameRunning || gamePaused || zoomedIn) return;
-    idleShow(entry.text);
-    idleSeqIdx++;
-    idleRunSequence();
-  }, delay);
-}
-
-// Called from onMove when mouse enters stone during sequence
-function idleOnEnterStone(){
-  if(idleEggPhase !== 'sequence') return;
-  // Stop the sequence
-  idleClearTimeout();
-  idleEggPhase = 'hover_prompt';
-  idleMsg = null;
-  idleShow("Yes! Throw the stone!");
-  idleWatchTimer = 0;
-  idlePesterShown = 0;
-  // After prompt fades, move to watching
-  idleTimeoutId = setTimeout(()=>{
-    if(idleEggPhase !== 'hover_prompt') return;
-    idleEggPhase = 'watching';
-    idleWatchTimer = 0;
-    // Re-check if mouse is still on stone
-    if(stonePos){
-      const dx = idleMouseX - stonePos.x, dy = idleMouseY - stonePos.y;
-      idleOnStone = Math.sqrt(dx*dx+dy*dy) < baseStoneR * 1.7;
-    } else {
-      idleOnStone = false;
-    }
-  }, 2800);
-}
-
-// Called when stone is thrown during watching/pestering
-function idleOnThrow(){
-  if(idleEggPhase !== 'watching' && idleEggPhase !== 'pestering') return;
-  idleClearTimeout();
-  idleEggPhase = 'done';
-  idleShow("Good, keep it up!");
-  idleTimeoutId = setTimeout(()=>{
-    idleShow("Just keep going... I have to go now.");
-    idleTimeoutId = setTimeout(()=>{ idleMsg=null; }, 3200);
-  }, 3000);
-}
-
-// Called when mouse leaves stone during watching
-function idleOnLeaveStone(){
-  if(idleEggPhase !== 'watching' && idleEggPhase !== 'pestering') return;
-  idleClearTimeout();
-  idleEggPhase = 'done';
-  idleShow("No! Go back to the stone!");
-  idleTimeoutId = setTimeout(()=>{
-    idleShow("I give up, you won.");
-    idleTimeoutId = setTimeout(()=>{ idleMsg=null; }, 3000);
-  }, 3000);
-}
-
-function updateIdleEgg(dt){
-  if(!gameRunning || gamePaused || zoomedIn) return;
-
-  // Phase: idle — count 60s
-  if(idleEggPhase === 'idle'){
-    idleTimer += dt;
-    if(idleTimer >= 60000){
-      idleEggPhase = 'sequence';
-      // Record if mouse already on stone — must leave first before triggering
-      if(stonePos){
-        const dx = idleMouseX - stonePos.x, dy = idleMouseY - stonePos.y;
-        idleWasOnStone = Math.sqrt(dx*dx+dy*dy) < baseStoneR * 1.7;
-      }
-      idleRunSequence();
-    }
-    return;
-  }
-
-  // Phase: watching — check for leave or pester
-  if(idleEggPhase === 'watching'){
-    idleWatchTimer += dt;
-    const onStone = stonePos ? (()=>{ const dx=idleMouseX-stonePos.x,dy=idleMouseY-stonePos.y; return Math.sqrt(dx*dx+dy*dy)<baseStoneR*1.7; })() : false;
-    idleOnStone = onStone;
-    if(!onStone){
-      idleOnLeaveStone();
-      return;
-    }
-    if(idleWatchTimer > 4000 && idlePesterShown === 0){
-      idlePesterShown = 1;
-      idleEggPhase = 'pestering';
-      idleShow("Come on, throw it...");
-      idleTimeoutId = setTimeout(()=>{
-        if(idleEggPhase !== 'pestering') return;
-        idleShow("Please!");
-        idlePesterShown = 2;
-        idleTimeoutId = setTimeout(()=>{
-          if(idleEggPhase !== 'pestering') return;
-          idleShow("What's so difficult about it? Okay, I give up, bye.");
-          idleEggPhase = 'done';
-          idleTimeoutId = setTimeout(()=>{ idleMsg=null; }, 3500);
-        }, 2800);
-      }, 2800);
-    }
-    return;
-  }
-
-  // Phase: pestering — check for leave
-  if(idleEggPhase === 'pestering'){
-    const onStone = stonePos ? (()=>{ const dx=idleMouseX-stonePos.x,dy=idleMouseY-stonePos.y; return Math.sqrt(dx*dx+dy*dy)<baseStoneR*1.7; })() : false;
-    if(!onStone) idleOnLeaveStone();
+function initPressureBar(){
+  pressureTimer = 0;
+  pressurePenaltyAnim = null;
+  const wrap = document.getElementById('pressure-bar-wrap');
+  if(gameMode === 'classic'){
+    wrap.style.display = 'block';
+    updatePressureBarUI(1);
+  } else {
+    wrap.style.display = 'none';
   }
 }
 
-function drawIdleMsg(){
-  if(!idleMsg || gamePaused || zoomedIn) return;
-  const age = (performance.now() - idleMsg.born) / 1000;
-  // Fade in 0.4s, hold until 2.2s, fade out 0.6s
-  let alpha;
-  if(age < 0.4)       alpha = age / 0.4;
-  else if(age < 2.2)  alpha = 1;
-  else if(age < 2.8)  alpha = 1 - (age - 2.2) / 0.6;
-  else { idleMsg = null; return; }
-
-  ctx.save();
-  ctx.globalAlpha = alpha * 0.82;
-  ctx.font = 'italic ' + Math.round(Math.min(W,H)*0.032) + 'px sans-serif';
-  ctx.fillStyle = document.body.classList.contains('dark') ? '#ccc' : '#333';
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.fillText(idleMsg.text, W/2, H * 0.5);
-  ctx.restore();
+function updatePressureBarUI(frac){
+  const bar = document.getElementById('pressure-bar');
+  if(!bar) return;
+  // frac 0..1: 1=full(green), 0=empty(red)
+  const r = Math.round(255 * (1 - frac));
+  const g = Math.round(200 * frac);
+  bar.style.background = `rgb(${r},${g},30)`;
+  bar.style.width = (frac * 100) + '%';
 }
-function randomSpawnDelay(){ return 800 + Math.random()*3200; } // 0.8s – 4s
+
+function showPressurePenalty(){
+  const txt = document.getElementById('pressure-penalty-text');
+  const sc  = document.getElementById('pressure-penalty-stone');
+  if(!txt || !sc) return;
+  txt.style.display = 'inline';
+  sc.style.display  = 'inline';
+  // Draw stone texture on the penalty canvas
+  const c = sc.getContext('2d');
+  const w = sc.width, h = sc.height;
+  c.clearRect(0,0,w,h);
+  drawStoneOnCtx(c, w/2, h/2, Math.min(w,h)*0.48);
+  // Hide after 1.5s
+  setTimeout(()=>{
+    txt.style.display = 'none';
+    sc.style.display  = 'none';
+  }, 1500);
+}
+
+function updatePressureBar(dt){
+  if(gameMode !== 'classic' || !gameRunning || gamePaused) return;
+  pressureTimer += dt;
+  const frac = Math.max(0, 1 - pressureTimer / PRESSURE_DURATION);
+  updatePressureBarUI(frac);
+
+  if(pressureTimer >= PRESSURE_DURATION){
+    pressureTimer = 0;
+    stonesLeft = Math.max(0, stonesLeft - 3);
+    updateStoneCounter();
+    showPressurePenalty();
+    updatePressureBarUI(1);
+    if(stonesLeft <= 0){
+      triggerGameOver(600);
+    }
+  }
+}
+
+function randomSpawnDelay(){
+  if(gameMode === 'timer'){
+    // Faster spawn in timer mode
+    return 400 + Math.random() * 1800;
+  }
+  return 800 + Math.random()*3200;
+}
+
+function maxTargets(){
+  if(gameMode !== 'timer') return 3;
+  // More simultaneous targets at higher scores
+  if(score >= 60) return Math.random() < 0.6 ? 4 : 3;
+  if(score >= 40) return Math.random() < 0.4 ? 3 : 2;
+  if(score >= 20) return Math.random() < 0.25 ? 3 : 2;
+  return 2;
+}
+
 function loop(ts){
   if(!gameRunning || gamePaused) return;
   const dt=Math.min(ts-lastTime,50); lastTime=ts;
@@ -1717,14 +1735,14 @@ function loop(ts){
 
   spawnTimer+=dt;
 
+  const maxT = maxTargets();
   // Always ensure at least 1 target exists — spawn immediately if none
   if(targets.length===0){
     spawnTarget();
     spawnTimer=0;
     nextSpawnIn=randomSpawnDelay();
-  } else if(targets.length<3 && spawnTimer>=nextSpawnIn){
+  } else if(targets.length < maxT && spawnTimer>=nextSpawnIn){
     spawnTarget();
-    // Also try spawning black hole
     trySpawnBlackHole();
     spawnTimer=0;
     nextSpawnIn=randomSpawnDelay();
@@ -1762,8 +1780,7 @@ function loop(ts){
   drawBlackHole(); // draw on top of targets/stones
   drawHeldStone();
   drawPopups();
-  updateIdleEgg(dt);
-  drawIdleMsg();
+  updatePressureBar(dt);
   requestAnimationFrame(loop);
 }
 
@@ -1897,7 +1914,6 @@ function startGame(){
   resize();
   baseStoneR=Math.min(W,H)*.11;
   gameRunning=true; gamePaused=false; score=0; currentVariant=0;
-  resetIdleEgg();
   stonesLeft=30; stoneCountdown=null; updateStoneCounter();
   document.getElementById('pause-box').querySelector('h2').textContent = 'Paused';
   document.getElementById('btn-continue').style.display = 'block';
@@ -1907,6 +1923,7 @@ function startGame(){
   document.getElementById('new-highscore-banner').classList.remove('visible');
   document.getElementById('score').textContent='0';
   targets=[]; flyingStones=[]; spawnTimer=0; nextSpawnIn=0; scorePopups=[]; yellowSpawned=false; blackHole=null;
+  initPressureBar();
   resetStone();
   canvas.removeEventListener('mousedown', onDown);
   canvas.removeEventListener('mousemove', onMove);
@@ -1937,10 +1954,14 @@ function restartGame(){
 function showGameOver(){
   if(!gameRunning) return;
   gameRunning = false;
-  setZoomWarning(false);
+  gamePaused = false;
+  zoomedIn = false;
+  const warn = document.getElementById('zoom-warning');
+  if(warn) warn.style.display = 'none';
   playSound('gameover');
   submitScore();
   document.getElementById('pause-box').querySelector('h2').textContent = 'Game Over';
+  document.getElementById('pause-mode-label').textContent = gameMode === 'timer' ? 'Timer Targets' : 'Classic';
   document.getElementById('pause-score').textContent = 'Score: ' + score;
   document.getElementById('btn-continue').style.display = 'none';
   document.getElementById('btn-restart').style.display = 'block';
@@ -1949,11 +1970,16 @@ function showGameOver(){
   updateHomeHighscore();
 }
 
+function triggerGameOver(delay){
+  setTimeout(()=>{ showGameOver(); }, delay || 0);
+}
+
 function pauseGame(){
   if(!gameRunning || gamePaused) return;
   gamePaused = true;
   playSound('pause');
   document.getElementById('pause-score').textContent = 'Score: ' + score;
+  document.getElementById('pause-mode-label').textContent = gameMode === 'timer' ? 'Timer Targets' : 'Classic';
   document.getElementById('pause-overlay').classList.add('visible');
 }
 
@@ -1969,13 +1995,15 @@ function resumeGame(){
 function goHome(){
   playSound('click');
   gamePaused = false; gameRunning = false;
-  submitScore(); // must be before disableDebugMode() so debug guard works
+  submitScore();
   disableDebugMode();
   document.getElementById('pause-overlay').classList.remove('visible');
   document.getElementById('gamescreen').style.display='none';
   document.getElementById('homescreen').style.display='flex';
+  document.getElementById('pressure-bar-wrap').style.display='none';
   updateHomeHighscore();
-  refreshLeaderboard();
+  if(gameMode === 'timer') refreshTimerLeaderboard();
+  else refreshLeaderboard();
   canvas.removeEventListener('mousedown', onDown);
   canvas.removeEventListener('mousemove', onMove);
   canvas.removeEventListener('mouseup',   onUp);
@@ -1986,6 +2014,13 @@ function goHome(){
 }
 
 document.addEventListener('keydown', e => {
+  // Dismiss splash on any key
+  if(!splashDone && e.key !== 'Tab') dismissSplash();
+  // Arrow keys: navigate pages on homescreen
+  if(splashDone && !gameRunning && document.getElementById('homescreen').style.display !== 'none'){
+    if(e.key === 'ArrowRight' && currentPage === 0) goToPage(1);
+    if(e.key === 'ArrowLeft'  && currentPage === 1) goToPage(0);
+  }
   if(e.key === 'Escape'){
     if(gamePaused){ resumeGame(); } else { pauseGame(); }
   }
@@ -2497,10 +2532,13 @@ async function submitName(){
   if(!val) return;
 
   if(isRenaming && playerName){
-    // Rename: update existing row with new name
+    // Rename in both tables
     await sbFetch('leaderboard?name=eq.' + encodeURIComponent(playerName), {
-      method: 'PATCH',
-      prefer: 'return=minimal',
+      method: 'PATCH', prefer: 'return=minimal',
+      body: JSON.stringify({ name: val, updated_at: new Date().toISOString() })
+    });
+    await sbFetch('leaderboard_timer?name=eq.' + encodeURIComponent(playerName), {
+      method: 'PATCH', prefer: 'return=minimal',
       body: JSON.stringify({ name: val, updated_at: new Date().toISOString() })
     });
     playerName = val;
@@ -2509,10 +2547,13 @@ async function submitName(){
     document.getElementById('name-cancel').style.display = 'none';
     refreshLeaderboard();
   } else {
-    // New registration: insert with score 0
+    // New registration: insert with score 0 in both tables
     await sbFetch('leaderboard', {
-      method: 'POST',
-      prefer: 'return=minimal',
+      method: 'POST', prefer: 'return=minimal',
+      body: JSON.stringify({ name: val, score: 0 })
+    });
+    await sbFetch('leaderboard_timer', {
+      method: 'POST', prefer: 'return=minimal',
       body: JSON.stringify({ name: val, score: 0 })
     });
     playerName = val;
@@ -2529,9 +2570,12 @@ let heartbeatId = null;
 
 async function sendHeartbeat(){
   if(!playerName || !sbAvailable) return;
+  const ts = { last_seen: new Date().toISOString() };
   await sbFetch('leaderboard?name=eq.' + encodeURIComponent(playerName), {
-    method: 'PATCH', prefer: 'return=minimal',
-    body: JSON.stringify({ last_seen: new Date().toISOString() })
+    method: 'PATCH', prefer: 'return=minimal', body: JSON.stringify(ts)
+  });
+  await sbFetch('leaderboard_timer?name=eq.' + encodeURIComponent(playerName), {
+    method: 'PATCH', prefer: 'return=minimal', body: JSON.stringify(ts)
   });
 }
 
@@ -2546,10 +2590,6 @@ function stopHeartbeat(){
 }
 
 // Start heartbeat when on homescreen or in game
-window.addEventListener('load', ()=>{
-  if(!playerName){ openNameModal(); }
-  else { refreshLeaderboard(); startHeartbeat(); }
-});
 
 async function refreshLeaderboard(){
   try {
@@ -2576,10 +2616,11 @@ function lbRefreshClick(btnId){
   const btn = document.getElementById(btnId);
   if(!btn) return;
   btn.classList.remove('spinning');
-  void btn.offsetWidth; // reflow to restart animation
+  void btn.offsetWidth;
   btn.classList.add('spinning');
   btn.addEventListener('animationend', ()=>btn.classList.remove('spinning'), {once:true});
-  refreshLeaderboard();
+  if(btnId === 'lb-refresh-timer') refreshTimerLeaderboard();
+  else refreshLeaderboard();
 }
 
 // Auto-refresh leaderboard every 30 seconds when on homescreen
@@ -2605,21 +2646,6 @@ function closeLeaderboard(){
   document.getElementById('lb-overlay').style.display = 'none';
 }
 
-async function submitScore(){
-  if(debugMode) return; // no score submission in debug mode
-  if(!playerName || score === 0) return;
-  // Only update if new score > existing
-  const rows = await sbFetch('leaderboard?name=eq.' + encodeURIComponent(playerName) + '&select=score');
-  if(!rows) return;
-  const existing = rows[0]?.score || 0;
-  if(score > existing){
-    await sbFetch('leaderboard?name=eq.' + encodeURIComponent(playerName), {
-      method: 'PATCH', prefer: 'return=minimal',
-      body: JSON.stringify({ score, updated_at: new Date().toISOString() })
-    });
-    refreshLeaderboard();
-  }
-}
 
 // On load: show name modal if no name yet, else refresh leaderboard
 
@@ -2974,25 +3000,22 @@ async function doDeleteAccount(){
   // Delete ALL local data first
   const name = playerName;
   playerName = null;
-  highScore = 0;
+  highScore = 0; highScoreTimer = 0;
   Object.keys(localStorage).filter(k => k.startsWith('tts_')).forEach(k => localStorage.removeItem(k));
 
   // Delete from Supabase with correct REST syntax
   if(name){
     const encoded = encodeURIComponent(name);
-    // Try up to 3 times
     for(let attempt = 0; attempt < 3; attempt++){
       try {
-        const res = await fetch(`${SB_URL}/rest/v1/leaderboard?name=eq.${encoded}`, {
+        await fetch(`${SB_URL}/rest/v1/leaderboard?name=eq.${encoded}`, {
           method: 'DELETE',
-          headers: {
-            apikey: SB_KEY,
-            Authorization: 'Bearer ' + SB_KEY,
-            'Content-Type': 'application/json',
-            Prefer: 'return=minimal'
-          }
+          headers: { apikey: SB_KEY, Authorization: 'Bearer ' + SB_KEY, 'Content-Type': 'application/json', Prefer: 'return=minimal' }
         });
-        // Check if deleted
+        await fetch(`${SB_URL}/rest/v1/leaderboard_timer?name=eq.${encoded}`, {
+          method: 'DELETE',
+          headers: { apikey: SB_KEY, Authorization: 'Bearer ' + SB_KEY, 'Content-Type': 'application/json', Prefer: 'return=minimal' }
+        });
         const checkRes = await fetch(`${SB_URL}/rest/v1/leaderboard?name=eq.${encoded}&select=name`, {
           headers: { apikey: SB_KEY, Authorization: 'Bearer ' + SB_KEY }
         });
@@ -3142,7 +3165,7 @@ function closeConfirmReset(){
 }
 function doResetHighScore(){
   playSound('click');
-  highScore = 0;
+  highScore = 0; highScoreTimer = 0;
   localStorage.removeItem('tts_highscore');
   document.getElementById('confirm-overlay').classList.remove('visible');
   document.getElementById('settingsscreen').classList.remove('visible');
@@ -3376,8 +3399,99 @@ function checkZoom(){
 setInterval(checkZoom, 800);
 window.addEventListener('resize', () => setTimeout(checkZoom, 300));
 
-// Wire up leaderboard button after DOM + script are fully loaded
-document.getElementById('btn-leaderboard').addEventListener('click', openLeaderboard);
+// ── SPLASH SCREEN ────────────────────────────────────────────────────
+
+function dismissSplash(){
+  if(splashDone) return;
+  splashDone = true;
+  const fade = document.getElementById('splash-fade');
+  // Fade to black: fast (0.4s)
+  fade.style.transition = 'opacity 0.4s ease-in';
+  fade.style.opacity = '1';
+  setTimeout(()=>{
+    document.getElementById('splash').style.display = 'none';
+    document.getElementById('home-pages-wrap').style.display = 'block';
+    document.getElementById('home-settings-global').style.display = 'block';
+    // Now fade back from black: slow (0.6s), move overlay to body level
+    const bodyFade = document.createElement('div');
+    bodyFade.style.cssText = 'position:fixed;inset:0;background:#000;z-index:9998;pointer-events:none;transition:opacity 0.6s ease-out;';
+    document.body.appendChild(bodyFade);
+    requestAnimationFrame(()=> requestAnimationFrame(()=>{
+      bodyFade.style.opacity = '0';
+      setTimeout(()=> bodyFade.remove(), 650);
+    }));
+    if(!playerName){ openNameModal(); } else { refreshLeaderboard(); startHeartbeat(); }
+  }, 420);
+}
+
+document.getElementById('splash').addEventListener('click', dismissSplash);
+document.getElementById('splash').addEventListener('touchstart', dismissSplash, {passive:true});
+
+// ── PAGE CAROUSEL ─────────────────────────────────────────────────────
+
+function goToPage(idx){
+  try{ playSound('click'); }catch(e){}
+  currentPage = idx;
+  document.getElementById('home-pages').style.transform = `translateX(-${idx * 100}vw)`;
+}
+
+// ── GAME MODE ─────────────────────────────────────────────────────────
+
+function startGameMode(mode){
+  gameMode = mode;
+  startGame();
+}
+
+// ── TIMER TARGETS LEADERBOARD ─────────────────────────────────────────
+function openTimerLeaderboard(){
+  try{ playSound('click'); }catch(e){}
+  document.getElementById('lb-overlay-timer').style.display = 'flex';
+  refreshTimerLeaderboard();
+}
+function closeTimerLeaderboard(){
+  try{ playSound('click'); }catch(e){}
+  document.getElementById('lb-overlay-timer').style.display = 'none';
+}
+async function refreshTimerLeaderboard(){
+  try{
+    const rows = await sbFetch('leaderboard_timer?select=name,score,last_seen&order=score.desc&limit=100');
+    if(!rows) return;
+    const now = Date.now();
+    const body = document.getElementById('lb-timer-body');
+    if(body){
+      body.innerHTML = rows.map((r,i)=>{
+        const isMe = r.name === playerName;
+        const lastSeen = r.last_seen ? new Date(r.last_seen).getTime() : 0;
+        const isOnline = (now - lastSeen) < 60000;
+        const dot = isOnline ? '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#22cc44;margin-right:5px;vertical-align:middle;"></span>' : '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:5px;"></span>';
+        return `<tr${isMe?' style="color:#c68a00"':''}><td style="padding:.32rem .4rem;border-bottom:1px solid var(--border);font-weight:700;color:var(--fg3);width:1.6em;">${i+1}</td><td style="padding:.32rem .4rem;border-bottom:1px solid var(--border);font-weight:600;color:${isMe?'#c68a00':'var(--fg)'};">${dot}${escHtml(r.name)}</td><td style="padding:.32rem .4rem;border-bottom:1px solid var(--border);text-align:right;font-weight:700;${isMe?'color:#c68a00;':''}">${r.score}</td></tr>`;
+      }).join('');
+    }
+  } catch(e){ console.warn('refreshTimerLeaderboard error:', e); }
+}
+
+// Mode-aware submitScore
+const _origSubmitScore = submitScore;
+async function submitScore(){
+  if(debugMode) return;
+  if(!playerName || score === 0) return;
+  const table = gameMode === 'timer' ? 'leaderboard_timer' : 'leaderboard';
+  const rows = await sbFetch(table + '?name=eq.' + encodeURIComponent(playerName) + '&select=score');
+  if(!rows) return;
+  const existing = rows[0]?.score || 0;
+  if(score > existing){
+    await sbFetch(table + '?name=eq.' + encodeURIComponent(playerName), {
+      method: 'PATCH', prefer: 'return=minimal',
+      body: JSON.stringify({ score, updated_at: new Date().toISOString() })
+    });
+    refreshLeaderboard();
+  }
+}
+
+// Wire up leaderboard buttons
+document.getElementById('btn-lb-classic').addEventListener('click', openLeaderboard);
+document.getElementById('btn-lb-timer').addEventListener('click', openTimerLeaderboard);
+
 </script>
 </body>
 </html>
