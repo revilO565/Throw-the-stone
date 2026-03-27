@@ -379,14 +379,14 @@
   }
   #lb-box h2 { font-size:1.3rem; font-weight:900; color:var(--fg); margin-bottom:1rem; text-align:center; }
   #lb-scroll { overflow-y:auto; flex:1; }
-  #lb-full-table { width:100%; border-collapse:collapse; font-family:sans-serif; font-size:.9rem; }
-  #lb-full-table th { color:var(--fg3); font-weight:700; padding:.3rem .4rem; border-bottom:1px solid var(--border); text-align:left; }
-  #lb-full-table th:last-child { text-align:right; }
-  #lb-full-table td { padding:.32rem .4rem; color:var(--fg2); border-bottom:1px solid var(--border); }
-  #lb-full-table td:first-child { font-weight:700; color:var(--fg3); width:1.6em; }
-  #lb-full-table td:nth-child(2) { font-weight:600; color:var(--fg); }
-  #lb-full-table td:last-child { text-align:right; font-weight:700; }
-  #lb-full-table tr.me td { color:#c68a00 !important; }
+  #lb-full-table, #lb-timer-table { width:100%; border-collapse:collapse; font-family:sans-serif; font-size:.9rem; }
+  #lb-full-table th, #lb-timer-table th { color:var(--fg3); font-weight:700; padding:.3rem .4rem; border-bottom:1px solid var(--border); text-align:left; }
+  #lb-full-table th:last-child, #lb-timer-table th:last-child { text-align:right; }
+  #lb-full-table td, #lb-timer-table td { padding:.32rem .4rem; color:var(--fg2); border-bottom:1px solid var(--border); }
+  #lb-full-table td:first-child, #lb-timer-table td:first-child { font-weight:700; color:var(--fg3); width:1.6em; }
+  #lb-full-table td:nth-child(2), #lb-timer-table td:nth-child(2) { font-weight:600; color:var(--fg); }
+  #lb-full-table td:last-child, #lb-timer-table td:last-child { text-align:right; font-weight:700; }
+  #lb-full-table tr.me td, #lb-timer-table tr.me td { color:#c68a00 !important; }
   #lb-close { margin-top:1rem; width:100%; padding:.6rem; font-family:sans-serif; font-size:.95rem;
     font-weight:700; background:var(--fg); color:var(--bg); border:none; border-radius:5px; cursor:pointer; }
 
@@ -476,13 +476,13 @@
 
 <!-- LEADERBOARD OVERLAY (Timer Targets) -->
 <div id="lb-overlay-timer" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.7);align-items:center;justify-content:center;">
-  <div style="background:var(--bg);border-radius:12px;padding:1.6rem 1.8rem;box-shadow:0 8px 40px rgba(0,0,0,.3);width:90%;max-width:380px;max-height:80vh;display:flex;flex-direction:column;">
+  <div id="lb-box-timer" style="background:var(--bg);border-radius:12px;padding:1.6rem 1.8rem;box-shadow:0 8px 40px rgba(0,0,0,.3);width:90%;max-width:380px;max-height:80vh;display:flex;flex-direction:column;">
     <div style="display:flex;align-items:center;justify-content:center;margin-bottom:1rem;">
       <h2 style="margin:0;flex:1;text-align:center;font-size:1.3rem;font-weight:900;color:var(--fg);">Timer Targets Leaderboard</h2>
       <button onclick="lbRefreshClick('lb-refresh-timer')" id="lb-refresh-timer" class="lb-refresh-btn" style="background:none;border:none;cursor:pointer;font-size:1rem;color:var(--fg3);" title="Refresh">↻</button>
     </div>
-    <div style="overflow-y:auto;flex:1;">
-      <table style="width:100%;border-collapse:collapse;font-family:sans-serif;font-size:.9rem;">
+    <div id="lb-scroll-timer" style="overflow-y:auto;flex:1;">
+      <table id="lb-timer-table" style="width:100%;border-collapse:collapse;font-family:sans-serif;font-size:.9rem;">
         <thead><tr>
           <th style="color:var(--fg3);font-weight:700;padding:.3rem .4rem;border-bottom:1px solid var(--border);text-align:left;">#</th>
           <th style="color:var(--fg3);font-weight:700;padding:.3rem .4rem;border-bottom:1px solid var(--border);text-align:left;">Name</th>
@@ -3464,8 +3464,8 @@ async function refreshTimerLeaderboard(){
         const isMe = r.name === playerName;
         const lastSeen = r.last_seen ? new Date(r.last_seen).getTime() : 0;
         const isOnline = (now - lastSeen) < 60000;
-        const dot = isOnline ? '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#22cc44;margin-right:5px;vertical-align:middle;"></span>' : '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:5px;"></span>';
-        return `<tr${isMe?' style="color:#c68a00"':''}><td style="padding:.32rem .4rem;border-bottom:1px solid var(--border);font-weight:700;color:var(--fg3);width:1.6em;">${i+1}</td><td style="padding:.32rem .4rem;border-bottom:1px solid var(--border);font-weight:600;color:${isMe?'#c68a00':'var(--fg)'};">${dot}${escHtml(r.name)}</td><td style="padding:.32rem .4rem;border-bottom:1px solid var(--border);text-align:right;font-weight:700;${isMe?'color:#c68a00;':''}">${r.score}</td></tr>`;
+        const dot = isOnline ? '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#22cc44;margin-right:5px;vertical-align:middle;flex-shrink:0;"></span>' : '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:5px;"></span>';
+        return `<tr class="${isMe?'me':''}"><td>${i+1}</td><td>${dot}${escHtml(r.name)}</td><td>${r.score}</td></tr>`;
       }).join('');
     }
   } catch(e){ console.warn('refreshTimerLeaderboard error:', e); }
